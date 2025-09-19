@@ -24,7 +24,7 @@ public interface MoveCalculator {
         int currY = currPosition.getRow();
 
         ChessPiece currentPiece = board.getPiece(currPosition);
-        if (currentPiece == null) return moves;
+        if (currentPiece == null) return moves; // no piece at start square
 
         var team = currentPiece.getTeamColor();
 
@@ -39,19 +39,19 @@ public interface MoveCalculator {
                 ChessPiece targetPiece = board.getPiece(target);
 
                 if (targetPiece == null) {
-
+                    // empty square → valid move
                     moves.add(new ChessMove(currPosition, target, null));
                 } else {
-
+                    // occupied square
                     if (targetPiece.getTeamColor() != team) {
-
+                        // capture opponent piece
                         moves.add(new ChessMove(currPosition, target, null));
                     }
-
+                    // always stop after hitting a piece
                     break;
                 }
 
-                if (!repeat) break;
+                if (!repeat) break; // knights/kings only step once
                 step++;
             }
         }

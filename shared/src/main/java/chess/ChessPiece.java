@@ -1,9 +1,6 @@
 package chess;
 
-import chess.MoveCalculators.BishopMoveCalculator;
-import chess.MoveCalculators.KingMoveCalculator;
-import chess.MoveCalculators.KnightMoveCalculator;
-import chess.MoveCalculators.QueenMoveCalculator;
+import chess.MoveCalculators.*;
 
 import java.util.Collection;
 
@@ -63,6 +60,8 @@ public class ChessPiece {
             case QUEEN -> QueenMoveCalculator.getMoves(board,myPosition);
             case KING -> KingMoveCalculator.getMoves(board,myPosition);
             case KNIGHT -> KnightMoveCalculator.getMoves(board,myPosition);
+            case ROOK -> RookMoveCalculator.getMoves(board,myPosition);
+            case PAWN -> PawnMoveCalculator.getMoves(board,myPosition);
 
         };
     }
