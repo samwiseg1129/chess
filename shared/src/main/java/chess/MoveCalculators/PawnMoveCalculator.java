@@ -6,47 +6,61 @@ import chess.ChessPiece;
 import chess.ChessPosition;
 import chess.ChessGame;
 
-import java.util.HashSet;
+import java.util.*;
 
 public class PawnMoveCalculator implements MoveCalculator {
-
     public static HashSet<ChessMove> getMoves(ChessBoard board, ChessPosition currPosition) {
         HashSet<ChessMove> moves = new HashSet<>();
-
         ChessPiece pawn = board.getPiece(currPosition);
         if (pawn == null) return moves;
 
-        var team = pawn.getTeamColor();
+        ChessGame.TeamColor team = pawn.getTeamColor();
         int currX = currPosition.getColumn();
         int currY = currPosition.getRow();
-
-        // Direction pawns move (White moves up +1, Black moves down -1)
         int forward = (team == ChessGame.TeamColor.WHITE) ? 1 : -1;
+        int promotionRank = (team == ChessGame.TeamColor.WHITE) ? 8 : 1;
+        int startRow = (team == ChessGame.TeamColor.WHITE) ? 2 : 7;
 
-        // 1-square forward move
+        List<ChessPiece.PieceType> promotionTypes = Arrays.asList(
+                ChessPiece.PieceType.QUEEN,
+                ChessPiece.PieceType.ROOK,
+                ChessPiece.PieceType.BISHOP,
+                ChessPiece.PieceType.KNIGHT);
+
         ChessPosition oneStep = new ChessPosition(currY + forward, currX);
         if (MoveCalculator.isValidSquare(oneStep) && board.getPiece(oneStep) == null) {
-            moves.add(new ChessMove(currPosition, oneStep, null));
-
-            // 2-square forward move from starting row
-            int startRow = (team == ChessGame.TeamColor.WHITE) ? 2 : 7;
-            ChessPosition twoStep = new ChessPosition(currY + 2 * forward, currX);
-            if (currY == startRow && board.getPiece(twoStep) == null) {
-                moves.add(new ChessMove(currPosition, twoStep, null));
+            if (oneStep.getRow() == promotionRank) {
+                for (ChessPiece.PieceType type : promotionTypes) {
+                    moves.add(new ChessMove(currPosition, oneStep, type));
+                }
+            } else {
+                moves.add(new ChessMove(currPosition, oneStep, null));
+                // Two-square move (only from start row, not promotion)
+                ChessPosition twoStep = new ChessPosition(currY + 2 * forward, currX);
+                if (currY == startRow && board.getPiece(twoStep) == null && board.getPiece(oneStep) == null) {
+                    moves.add(new ChessMove(currPosition, twoStep, null));
+                }
             }
         }
 
-        // Diagonal captures
-        int[][] captures = {{-1, forward}, {1, forward}};
+        int[][] captures = { { -1, forward }, { 1, forward } };
         for (int[] cap : captures) {
             ChessPosition target = new ChessPosition(currY + cap[1], currX + cap[0]);
             if (MoveCalculator.isValidSquare(target)) {
                 ChessPiece targetPiece = board.getPiece(target);
                 if (targetPiece != null && targetPiece.getTeamColor() != team) {
-                    moves.add(new ChessMove(currPosition, target, null));
+                    if (target.getRow() == promotionRank) {
+                        for (ChessPiece.PieceType type : promotionTypes) {
+                            moves.add(new ChessMove(currPosition, target, type));
+                        }
+                    } else {
+                        moves.add(new ChessMove(currPosition, target, null));
+                    }
                 }
             }
         }
+
+        // (Optional: Add en passant logic here if needed)
 
         return moves;
     }
