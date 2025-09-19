@@ -4,7 +4,7 @@ import chess.MoveCalculators.BishopMoveCalculator;
 import chess.MoveCalculators.QueenMoveCalculator;
 
 import java.util.Collection;
-import java.util.List;
+
 
 /**
  * Represents a single chess piece
