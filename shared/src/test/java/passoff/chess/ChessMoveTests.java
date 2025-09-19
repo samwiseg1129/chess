@@ -31,4 +31,6 @@ public class ChessMoveTests extends EqualsTestingUtility<ChessMove> {
         );
     }
 
+
+
 }
