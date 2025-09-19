@@ -1,6 +1,7 @@
 package chess;
 
 import chess.MoveCalculators.BishopMoveCalculator;
+import chess.MoveCalculators.QueenMoveCalculator;
 
 import java.util.Collection;
 import java.util.List;
@@ -57,22 +58,8 @@ public class ChessPiece {
     public Collection<ChessMove> pieceMoves(ChessBoard board, ChessPosition myPosition) {
         return switch (type) {
             case BISHOP -> BishopMoveCalculator.getMoves(board,myPosition);
+            case QUEEN -> QueenMoveCalculator.getMoves(board,myPosition);
         };
     }
-//        if (piece.getPieceType() == PieceType.QUEEN){
-//            pass;
-//        }
-//        if (piece.getPieceType() == PieceType.KNIGHT) {
-//            pass;
-//        }
-//        if (piece.getPieceType() == PieceType.ROOK) {
-//            pass;
-//        }
-//        if (piece.getPieceType() == PieceType.KING) {
-//            pass;
-//        }
-//        if (piece.getPieceType() == PieceType.PAWN) {
-//            pass;
-//        }
 
 }

@@ -6,14 +6,12 @@ import chess.ChessPosition;
 
 import java.util.HashSet;
 
-public class BishopMoveCalculator implements MoveCalculator {
+public class QueenMoveCalculator implements MoveCalculator {
 
     public static HashSet<ChessMove> getMoves(ChessBoard board, ChessPosition currPosition) {
         int[][] moveDirections = {
-                {-1, 1},  // up-left
-                { 1, 1},  // up-right
-                { 1,-1},  // down-right
-                {-1,-1}   // down-left
+                {-1, 1},  { 1, 1},  { 1,-1},  {-1,-1},  // diagonals
+                { 0, 1},  { 1, 0},  { 0,-1},  {-1, 0}   // straight lines
         };
 
         return MoveCalculator.generateMoves(board, currPosition, moveDirections, true);
