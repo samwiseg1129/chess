@@ -14,7 +14,7 @@ public class ChessGame {
 
     private ChessBoard board;
     private TeamColor teamTurn;
-    private final boolean gameOver;
+    private boolean gameOver;
 
     public ChessGame() {
         this.board = new ChessBoard();
@@ -222,16 +222,22 @@ public class ChessGame {
     }
 
     @Override
+    public String toString() {
+        return "ChessGame{" +
+                "teamTurn=" + teamTurn +
+                ", board=" + board +
+                '}';
+    }
+    @Override
     public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
         ChessGame chessGame = (ChessGame) o;
-        return gameOver == chessGame.gameOver && Objects.equals(board, chessGame.board) && teamTurn == chessGame.teamTurn;
+        return teamTurn == chessGame.teamTurn && Objects.equals(board, chessGame.board);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(board, teamTurn, gameOver);
+        return Objects.hash(teamTurn, board);
     }
 }
