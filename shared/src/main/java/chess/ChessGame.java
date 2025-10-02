@@ -14,10 +14,11 @@ public class ChessGame {
 
     private ChessBoard board;
     private TeamColor teamTurn;
-    private boolean gameOver;
+    private final boolean gameOver;
 
     public ChessGame() {
         this.board = new ChessBoard();
+        this.board.resetBoard();
         setTeamTurn(TeamColor.WHITE);
         this.gameOver = false;
     }

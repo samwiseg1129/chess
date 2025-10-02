@@ -37,6 +37,10 @@ public class ChessGameTests extends EqualsTestingUtility<ChessGame> {
                     new ChessPosition(2, 5),
                     new ChessPosition(4, 5),
                     null));
+            game2.makeMove(new ChessMove(
+                    new ChessPosition(2, 5),
+                    new ChessPosition(4, 5),
+                    null));
             differentGames.add(game2);
 
             // Move knight
