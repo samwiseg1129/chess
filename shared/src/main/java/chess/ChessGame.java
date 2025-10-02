@@ -1,6 +1,7 @@
 package chess;
 
 import java.util.Collection;
+import java.util.*;
 
 /**
  * For a class that can manage a chess game, making moves on a board
@@ -9,13 +10,16 @@ import java.util.Collection;
  * signature of the existing methods.
  */
 public class ChessGame {
+    private static final int boardSize = 8;
 
     private ChessBoard board;
     private TeamColor teamTurn;
+    private boolean gameOver;
 
     public ChessGame() {
-        board = new ChessBoard();
+        this.board = new ChessBoard();
         setTeamTurn(TeamColor.WHITE);
+        this.gameOver = false;
     }
 
     /**
@@ -31,15 +35,19 @@ public class ChessGame {
      * @param team the team whose turn it is
      */
     public void setTeamTurn(TeamColor team) {
-        teamTurn = team;
+        this.teamTurn = team;
     }
 
     /**
      * Enum identifying the 2 possible teams in a chess game
      */
     public enum TeamColor {
-        WHITE,
-        BLACK
+        WHITE, BLACK;
+
+        @Override
+        public String toString() {
+            return this == WHITE ? "white" : "black";
+        }
     }
 
     /**
@@ -50,7 +58,33 @@ public class ChessGame {
      * startPosition
      */
     public Collection<ChessMove> validMoves(ChessPosition startPosition) {
-        throw new RuntimeException("Not implemented");
+        ChessPiece currPiece = board.getPiece(startPosition);
+        if (currPiece == null) return null;
+        Collection<ChessMove> possibleMoves = currPiece.pieceMoves(board, startPosition);
+        HashSet<ChessMove> validMoves = new HashSet<>();
+
+        for (ChessMove move : possibleMoves) {
+            // Save current state
+            ChessPiece originalStartPiece = board.getPiece(startPosition);
+            ChessPiece originalEndPiece = board.getPiece(move.getEndPosition());
+
+            // Simulate move (handle promotion)
+            ChessPiece movingPiece = (move.getPromotionPiece() != null)
+                    ? new ChessPiece(currPiece.getTeamColor(), move.getPromotionPiece())
+                    : currPiece;
+            board.addPiece(startPosition, null);
+            board.addPiece(move.getEndPosition(), movingPiece);
+
+            // Validate move
+            if (!isInCheck(currPiece.getTeamColor())) {
+                validMoves.add(move);
+            }
+
+            // Undo move
+            board.addPiece(move.getEndPosition(), originalEndPiece);
+            board.addPiece(startPosition, originalStartPiece);
+        }
+        return validMoves;
     }
 
     /**
