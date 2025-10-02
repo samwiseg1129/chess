@@ -30,17 +30,19 @@ public class ChessGameTests extends EqualsTestingUtility<ChessGame> {
             ChessGame game1 = new ChessGame();
             game1.setTeamTurn(ChessGame.TeamColor.BLACK);
             differentGames.add(game1);
-
+            System.out.println(game1);
             // Move pawn
             ChessGame game2 = new ChessGame();
+            System.out.println(game2.getBoard());
             game2.makeMove(new ChessMove(
                     new ChessPosition(2, 5),
                     new ChessPosition(4, 5),
                     null));
-            game2.makeMove(new ChessMove(
-                    new ChessPosition(2, 5),
-                    new ChessPosition(4, 5),
-                    null));
+            System.out.println(game2.getBoard());
+//            game2.makeMove(new ChessMove(
+//                    new ChessPosition(2, 5),
+//                    new ChessPosition(4, 5),
+//                    null));
             differentGames.add(game2);
 
             // Move knight
