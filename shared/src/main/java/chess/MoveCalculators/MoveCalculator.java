@@ -14,9 +14,7 @@ public interface MoveCalculator {
                 position.getColumn() >= 1 && position.getColumn() <= 8;
     }
 
-    static HashSet<ChessMove> generateMoves(
-            ChessBoard board, ChessPosition currPosition,
-            int[][] directions, boolean repeat) {
+    static HashSet<ChessMove> generateMoves(ChessBoard board, ChessPosition currPosition, int[][] directions, boolean repeat) {
 
         HashSet<ChessMove> moves = new HashSet<>();
 
@@ -31,8 +29,7 @@ public interface MoveCalculator {
         for (int[] dir : directions) {
             int step = 1;
             while (true) {
-                ChessPosition target = new ChessPosition(currY + dir[1] * step,
-                        currX + dir[0] * step);
+                ChessPosition target = new ChessPosition(currY + dir[1] * step, currX + dir[0] * step);
 
                 if (!isValidSquare(target)) break;
 
