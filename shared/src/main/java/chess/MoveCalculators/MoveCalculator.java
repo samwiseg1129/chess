@@ -47,7 +47,6 @@ public interface MoveCalculator {
                     // always stop after hitting a piece
                     break;
                 }
-
                 if (!repeat) break; // knights/kings only step once
                 step++;
             }

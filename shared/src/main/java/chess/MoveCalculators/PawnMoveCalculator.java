@@ -60,8 +60,6 @@ public class PawnMoveCalculator implements MoveCalculator {
             }
         }
 
-        // (Optional: Add en passant logic here if needed)
-
         return moves;
     }
 }
