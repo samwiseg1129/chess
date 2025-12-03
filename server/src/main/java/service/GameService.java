@@ -41,6 +41,7 @@ public class GameService {
         if (auth == null) throw new DataAccessException("Error: unauthorized");
         GameData game = dao.getGame(req.gameID());
         if (game == null) throw new DataAccessException("Error: bad request");
+        if (req.playerColor() == null) throw new DataAccessException("Error: bad request");
         String username = auth.username();
         if (req.playerColor().equalsIgnoreCase("WHITE")) {
             if (game.whiteUsername() != null) throw new DataAccessException("Error: already taken");
