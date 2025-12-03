@@ -1,6 +1,6 @@
 package dataaccess;
 
-import chess.ChessGame;
+
 import model.*;
 import java.util.*;
 
@@ -19,25 +19,29 @@ public class MemoryDataAccess implements DataAccess {
     @Override
     public void createUser(UserData user) throws DataAccessException {
         if (users.containsKey(user.username())) {
-            throw new DataAccessException("User already exists");
+            throw new DataAccessException("Error: already taken");
+        }
+        if (user.username() == null || user.password() == null) {
+            throw new DataAccessException("Error: bad request");
         }
         users.put(user.username(), user);
     }
 
     @Override
     public UserData getUser(String username) throws DataAccessException {
-        UserData user = users.get(username);
-        if (user == null) throw new DataAccessException("User not found");
-        return user;
+        if (!users.containsKey(username)) {
+            throw new DataAccessException("Error: unauthorized");
+        }
+        return users.get(username);
     }
 
     @Override
     public void createGame(GameData game) throws DataAccessException {
         if (game == null || game.gameName() == null || game.gameName().isBlank()) {
-            throw new DataAccessException("Game name required");
+            throw new DataAccessException("Error: bad request");
         }
         if (games.containsKey(game.gameID())) {
-            throw new DataAccessException("Game already exists");
+            throw new DataAccessException("Error: already taken");
         }
         games.put(game.gameID(), game);
     }
@@ -45,7 +49,7 @@ public class MemoryDataAccess implements DataAccess {
     @Override
     public GameData getGame(int gameID) throws DataAccessException {
         GameData game = games.get(gameID);
-        if (game == null) throw new DataAccessException("Game not found");
+        if (game == null) throw new DataAccessException("Error: bad request");
         return game;
     }
 
@@ -57,14 +61,14 @@ public class MemoryDataAccess implements DataAccess {
     @Override
     public void updateGame(GameData game) throws DataAccessException {
         if (!games.containsKey(game.gameID())) {
-            throw new DataAccessException("Game not found");
+            throw new DataAccessException("Error: bad request");
         }
         games.put(game.gameID(), game);
     }
 
     @Override
     public AuthData createAuth(String username) throws DataAccessException {
-        if (username == null) throw new DataAccessException("Null username");
+        if (username == null) throw new DataAccessException("Error: bad request");
         var token = UUID.randomUUID().toString();
         var auth = new AuthData(token, username);
         auths.put(token, auth);
@@ -74,14 +78,14 @@ public class MemoryDataAccess implements DataAccess {
     @Override
     public AuthData getAuth(String authToken) throws DataAccessException {
         AuthData auth = auths.get(authToken);
-        if (auth == null) throw new DataAccessException("Auth not found");
+        if (auth == null) throw new DataAccessException("Error: unauthorized");
         return auth;
     }
 
     @Override
     public void deleteAuth(String authToken) throws DataAccessException {
         if (auths.remove(authToken) == null) {
-            throw new DataAccessException("Auth not found");
+            throw new DataAccessException("Error: unauthorized");
         }
     }
 }
