@@ -245,8 +245,10 @@ public class Server {
             case "Error: bad request" -> 400;
             case "Error: unauthorized" -> 401;
             case "Error: already taken" -> 403;
+            case "Error: Unauthorize" -> 401;
             default -> 500;
         };
+        // there are some dataAccessExceptions that get raised where I should be including ServiceExceptions instead. Found in game and user services respectively.
         ctx.status(status).json(gson.toJson(new ErrorResult(msg)));
     }
 
