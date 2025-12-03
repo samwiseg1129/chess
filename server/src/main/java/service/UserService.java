@@ -40,10 +40,14 @@ public class UserService {
     }
 
     public LoginResult login(LoginRequest req) throws DataAccessException {
+        if (req.username() == null || req.password() == null) {
+            throw new DataAccessException("Error: bad request");
+        }
         var user = dao.getUser(req.username());
         if (!user.password().equals(req.password())) {
             throw new DataAccessException("Error: unauthorized");
         }
+
 
         AuthData auth = dao.createAuth(req.username());
         return new LoginResult(auth.username(), auth.authToken());
