@@ -244,9 +244,6 @@ public class Server {
         int status = switch (msg) {
             case "Error: bad request" -> 400;
             case "Error: unauthorized" -> 401;
-            case "User not found" -> 401;
-            case "Unauthorized" -> 401;
-            case "Auth not found" -> 401;
             case "Error: already taken" -> 403;
             default -> 500;
         };
