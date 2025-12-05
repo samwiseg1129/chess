@@ -246,6 +246,7 @@ public class Server {
             case "Error: unauthorized" -> 401;
             case "Error: already taken" -> 403;
             case "Error: Unauthorized" -> 401;
+            case "Error: Already taken" -> 403;
             default -> 500;
         };
         // there are some dataAccessExceptions that get raised where I should be including ServiceExceptions instead. Found in game and user services respectively.
