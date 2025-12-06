@@ -16,9 +16,9 @@ public class MySqlDataAccess implements DataAccess {
     @Override
     public void clear() throws DataAccessException {
         try (var conn = DatabaseManager.getConnection()) {
-            clearUsers(conn);
             clearAuth(conn);
             clearGames(conn);
+            clearUsers(conn);
         } catch (SQLException e) {
             throw new DataAccessException("clear failed", e);
         }
@@ -51,17 +51,25 @@ public class MySqlDataAccess implements DataAccess {
             throw new DataAccessException("Error: bad request");
         }
 
-        // Check if user already exists
-        if (getUser(user.username()) != null) {
-            throw new DataAccessException("Error: already taken");
-        }
-
-        String sql = """
-            INSERT INTO users (username, password, email)
-            VALUES (?, ?, ?)
-            """;
+        String sql = "SELECT username FROM users WHERE username = ?";
         try (var conn = DatabaseManager.getConnection();
              var stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, user.username());
+            try (var rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    throw new DataAccessException("Error: already taken");
+                }
+            }
+        } catch (SQLException e) {
+            throw new DataAccessException("Error checking user", e);
+        }
+
+        String insertSql = """
+        INSERT INTO users (username, password, email)
+        VALUES (?, ?, ?)
+        """;
+        try (var conn = DatabaseManager.getConnection();
+             var stmt = conn.prepareStatement(insertSql)) {
             stmt.setString(1, user.username());
             stmt.setString(2, user.password());
             stmt.setString(3, user.email());
@@ -70,6 +78,7 @@ public class MySqlDataAccess implements DataAccess {
             throw new DataAccessException("Error creating user", e);
         }
     }
+
 
     @Override
     public UserData getUser(String username) throws DataAccessException {
@@ -102,7 +111,7 @@ public class MySqlDataAccess implements DataAccess {
             throw new DataAccessException("Error: bad request");
         }
 
-        String token = java.util.UUID.randomUUID().toString().substring(0, 50);
+        String token = java.util.UUID.randomUUID().toString();
         String sql = "INSERT INTO auth (auth_token, username) VALUES (?, ?)";
         try (var conn = DatabaseManager.getConnection();
              var stmt = conn.prepareStatement(sql)) {
