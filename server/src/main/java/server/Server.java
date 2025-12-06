@@ -19,7 +19,7 @@ public class Server {
     private final ClearService clearService;
 
     public Server() {
-        dao = new MemoryDataAccess();
+        dao = new MySqlDataAccess();
         userService = new UserService(dao);
         gameService = new GameService(dao);
         clearService = new ClearService(dao);
