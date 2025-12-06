@@ -48,12 +48,12 @@ public class UserService {
             throw new DataAccessException("Error: unauthorized");
         }
 
-
         AuthData auth = dao.createAuth(req.username());
         return new LoginResult(auth.username(), auth.authToken());
     }
 
     public void logout(LogoutRequest req) throws DataAccessException {
+        dao.getAuth(req.authToken());
         dao.deleteAuth(req.authToken());
     }
 

@@ -166,17 +166,22 @@ public class MySqlDataAccess implements DataAccess {
             throw new DataAccessException("Error: bad request");
         }
 
-        // Check if game ID already exists
-        if (getGame(game.gameID()) != null) {
-            throw new DataAccessException("Error: already taken");
+        String checkSql = "SELECT game_id FROM games WHERE game_id = ?";
+        try (var conn = DatabaseManager.getConnection();
+             var stmt = conn.prepareStatement(checkSql)) {
+            stmt.setInt(1, game.gameID());
+            try (var rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    throw new DataAccessException("Error: already taken");
+                }
+            }
+        } catch (SQLException e) {
+            throw new DataAccessException("Error checking game existence", e);
         }
 
-        String sql = """
-            INSERT INTO games (game_id, game_name, game_state, white_username, black_username)
-            VALUES (?, ?, ?, ?, ?)
-            """;
+        String insertSql = "INSERT INTO games (game_id, game_name, game_state, white_username, black_username) VALUES (?, ?, ?, ?, ?)";
         try (var conn = DatabaseManager.getConnection();
-             var stmt = conn.prepareStatement(sql)) {
+             var stmt = conn.prepareStatement(insertSql)) {
             stmt.setInt(1, game.gameID());
             stmt.setString(2, game.gameName());
             stmt.setString(3, gson.toJson(game.game()));
@@ -187,6 +192,7 @@ public class MySqlDataAccess implements DataAccess {
             throw new DataAccessException("Error creating game", e);
         }
     }
+
 
     @Override
     public GameData getGame(int gameID) throws DataAccessException {
