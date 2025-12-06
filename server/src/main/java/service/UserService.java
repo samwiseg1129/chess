@@ -4,14 +4,16 @@ import dataaccess.DataAccess;
 import dataaccess.DataAccessException;
 import model.UserData;
 import model.AuthData;
+import org.mindrot.jbcrypt.BCrypt;   // add this import
+
 import service.requests.LoginRequest;
 import service.requests.LogoutRequest;
 import service.requests.RegisterRequest;
 import service.results.LoginResult;
 import service.results.RegisterResult;
 
-
 public class UserService {
+
     private final DataAccess dao;
 
     public UserService(DataAccess dao) {
@@ -19,12 +21,9 @@ public class UserService {
     }
 
     public RegisterResult register(RegisterRequest req) throws DataAccessException {
-        if (req.username() == null || req.username().isEmpty() ||
-                req.password() == null || req.password().isEmpty() ||
-                req.email() == null || req.email().isEmpty()) {
+        if (req.username() == null || req.username().isEmpty() || req.password() == null || req.password().isEmpty() || req.email() == null || req.email().isEmpty()) {
             throw new DataAccessException("Error: bad request");
         }
-
         try {
             dao.getUser(req.username());
             throw new DataAccessException("Error: already taken");
@@ -32,7 +31,8 @@ public class UserService {
             // user not found
         }
 
-        var user = new UserData(req.username(), req.password(), req.email());
+        String hashedPassword = BCrypt.hashpw(req.password(), BCrypt.gensalt());
+        var user = new UserData(req.username(), hashedPassword, req.email());
         dao.createUser(user);
 
         AuthData auth = dao.createAuth(req.username());
@@ -43,8 +43,10 @@ public class UserService {
         if (req.username() == null || req.password() == null) {
             throw new DataAccessException("Error: bad request");
         }
+
         var user = dao.getUser(req.username());
-        if (!user.password().equals(req.password())) {
+
+        if (!BCrypt.checkpw(req.password(), user.password())) {
             throw new DataAccessException("Error: unauthorized");
         }
 
@@ -56,5 +58,4 @@ public class UserService {
         dao.getAuth(req.authToken());
         dao.deleteAuth(req.authToken());
     }
-
 }
