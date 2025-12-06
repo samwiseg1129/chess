@@ -63,7 +63,6 @@ public class MySqlDataAccess implements DataAccess {
         } catch (SQLException e) {
             throw new DataAccessException("Error checking user", e);
         }
-
         String insertSql = """
         INSERT INTO users (username, password, email)
         VALUES (?, ?, ?)
@@ -129,7 +128,6 @@ public class MySqlDataAccess implements DataAccess {
         if (authToken == null) {
             throw new DataAccessException("Error: bad request");
         }
-
         String sql = "SELECT auth_token, username FROM auth WHERE auth_token = ?";
         try (var conn = DatabaseManager.getConnection();
              var stmt = conn.prepareStatement(sql)) {
@@ -165,7 +163,6 @@ public class MySqlDataAccess implements DataAccess {
         if (game == null || game.gameName() == null || game.gameName().isBlank()) {
             throw new DataAccessException("Error: bad request");
         }
-
         String checkSql = "SELECT game_id FROM games WHERE game_id = ?";
         try (var conn = DatabaseManager.getConnection();
              var stmt = conn.prepareStatement(checkSql)) {
@@ -253,7 +250,6 @@ public class MySqlDataAccess implements DataAccess {
         if (getGame(game.gameID()) == null) {
             throw new DataAccessException("Error: bad request");
         }
-
         String sql = """
             UPDATE games
             SET game_name = ?, game_state = ?, white_username = ?, black_username = ?
