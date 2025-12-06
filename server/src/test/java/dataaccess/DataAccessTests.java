@@ -39,7 +39,7 @@ public class DataAccessTests {
     }
 
     @Test
-    public void createUserNegativeTestDuplicate() throws DataAccessException {
+    public void createUserNegativeTest() throws DataAccessException {
         UserData user1 = new UserData("testuser", "testpass", "test@email.com");
         dao.createUser(user1);
 
@@ -62,7 +62,7 @@ public class DataAccessTests {
     }
 
     @Test
-    public void getUserNegativeTestNonExistent() {
+    public void getUserNegativeTest() {
         DataAccessException exception = assertThrows(DataAccessException.class, () -> {
             dao.getUser("nonexistent");
         });
@@ -86,7 +86,7 @@ public class DataAccessTests {
     }
 
     @Test
-    public void createAuthNegativeTestNonExistentUser() {
+    public void createAuthNegativeTest() {
         DataAccessException exception = assertThrows(DataAccessException.class, () -> {
             dao.createAuth("nonexistent");
         });
@@ -105,7 +105,7 @@ public class DataAccessTests {
     }
 
     @Test
-    public void getAuthNegativeTestInvalidToken() throws DataAccessException {
+    public void getAuthNegativeTest() throws DataAccessException {
         dao.createUser(new UserData("testuser", "testpass", "test@email.com"));
         AuthData auth = dao.createAuth("testuser");
 
@@ -131,7 +131,7 @@ public class DataAccessTests {
     }
 
     @Test
-    public void deleteAuthNegativeTestNonExistent() {
+    public void deleteAuthNegativeTest() {
         assertDoesNotThrow(() -> dao.deleteAuth("nonexistenttoken"));
     }
 
@@ -152,7 +152,7 @@ public class DataAccessTests {
     }
 
     @Test
-    public void createGameNegativeTestDuplicateID() throws DataAccessException {
+    public void createGameNegativeTest() throws DataAccessException {
         ChessGame game = new ChessGame();
         GameData gameData = new GameData(1, null, null, "Test Game", game);
 
@@ -176,7 +176,7 @@ public class DataAccessTests {
     }
 
     @Test
-    public void getGameNegativeTestNonExistent() {
+    public void getGameNegativeTest() {
         DataAccessException exception = assertThrows(DataAccessException.class, () -> {
             dao.getGame(999);
         });
@@ -208,12 +208,10 @@ public class DataAccessTests {
         dao.createUser(new UserData("player1", "pass1", "player1@email.com"));
         dao.createUser(new UserData("player2", "pass2", "player2@email.com"));
 
-        // Create initial game
         ChessGame initialGame = new ChessGame();
         GameData gameData = new GameData(1, null, null, "Original Name", initialGame);
         dao.createGame(gameData);
 
-        // Update game with valid usernames
         ChessGame updatedGame = new ChessGame();
         GameData updatedData = new GameData(1, "player1", "player2", "Updated Name", updatedGame);
         dao.updateGame(updatedData);
@@ -226,7 +224,7 @@ public class DataAccessTests {
 
 
     @Test
-    public void updateGameNegativeTestNonExistent() {
+    public void updateGameNegative() {
         ChessGame game = new ChessGame();
         GameData gameData = new GameData(999, null, null, "Test Game", game);
 
@@ -236,7 +234,6 @@ public class DataAccessTests {
         assertEquals("Error: bad request", exception.getMessage());
     }
 
-    // Clear Method (Positive test only)
 
     @Test
     public void clearPositiveTest() throws DataAccessException {
@@ -246,15 +243,12 @@ public class DataAccessTests {
         ChessGame game = new ChessGame();
         dao.createGame(new GameData(1, null, null, "Test Game", game));
 
-        // Verify data exists
         assertNotNull(dao.getUser("testuser"));
         assertNotNull(dao.getAuth(auth.authToken()));
         assertNotNull(dao.getGame(1));
 
-        // Clear everything
         dao.clear();
 
-        // Verify everything is gone
         assertThrows(DataAccessException.class, () -> dao.getUser("testuser"));
         assertThrows(DataAccessException.class, () -> dao.getGame(1));
         assertTrue(dao.listGames().isEmpty());
