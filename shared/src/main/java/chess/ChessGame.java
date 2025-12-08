@@ -65,23 +65,19 @@ public class ChessGame {
         HashSet<ChessMove> validMoves = new HashSet<>();
 
         for (ChessMove move : possibleMoves) {
-            // Save current state
             ChessPiece originalStartPiece = board.getPiece(startPosition);
             ChessPiece originalEndPiece = board.getPiece(move.getEndPosition());
 
-            // Simulate move (handle promotion)
             ChessPiece movingPiece = (move.getPromotionPiece() != null)
                     ? new ChessPiece(currPiece.getTeamColor(), move.getPromotionPiece())
                     : currPiece;
             board.addPiece(startPosition, null);
             board.addPiece(move.getEndPosition(), movingPiece);
 
-            // Validate move
             if (!isInCheck(currPiece.getTeamColor())) {
                 validMoves.add(move);
             }
 
-            // Undo move
             board.addPiece(move.getEndPosition(), originalEndPiece);
             board.addPiece(startPosition, originalStartPiece);
         }
@@ -136,7 +132,6 @@ public class ChessGame {
         if (kingPos == null) {
             throw new IllegalStateException("King not found on board for team: " + teamColor);
         }
-        // See if any enemy piece can attack the king
         for (int y = 1; y <= boardSize; y++) {
             for (int x = 1; x <= boardSize; x++) {
                 ChessPiece currPiece = board.getPiece(new ChessPosition(y, x));
@@ -167,7 +162,7 @@ public class ChessGame {
                 if (currPiece != null && currPiece.getTeamColor() == teamColor) {
                     Collection<ChessMove> moves = validMoves(currPosition);
                     if (moves != null && !moves.isEmpty()) {
-                        return false; // Still have valid moves, so not in checkmate
+                        return false;
                     }
                 }
             }
