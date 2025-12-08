@@ -2,8 +2,8 @@ package server;
 
 import com.google.gson.Gson;
 import dataaccess.DataAccess;
-//import dataaccess.MemoryDataAccess;
 import dataaccess.DataAccessException;
+import dataaccess.DatabaseManager;
 import dataaccess.MemoryDataAccess;
 import dataaccess.MySqlDataAccess;
 import io.javalin.Javalin;
@@ -19,6 +19,39 @@ public class Server {
     private final ClearService clearService;
 
     public Server() {
+        try {
+            DatabaseManager.loadPropertiesFromResources();
+            DatabaseManager.createDatabase();
+
+            try (var conn = DatabaseManager.getConnection()) {
+                var stmt = conn.createStatement();
+                stmt.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    username VARCHAR(50) PRIMARY KEY,
+                    password VARCHAR(255) NOT NULL,
+                    email VARCHAR(255) NOT NULL
+                )""");
+                stmt.execute("""
+                CREATE TABLE IF NOT EXISTS auth (
+                    auth_token VARCHAR(50) PRIMARY KEY,
+                    username VARCHAR(50) NOT NULL,
+                    FOREIGN KEY (username) REFERENCES users(username)
+                )""");
+                stmt.execute("""
+                CREATE TABLE IF NOT EXISTS games (
+                    game_id INT PRIMARY KEY,
+                    game_name VARCHAR(100) NOT NULL,
+                    game_state JSON NOT NULL,
+                    white_username VARCHAR(50),
+                    black_username VARCHAR(50),
+                    FOREIGN KEY (white_username) REFERENCES users(username),
+                    FOREIGN KEY (black_username) REFERENCES users(username)
+                )""");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Database initialization failed", e);
+        }
+
         dao = new MySqlDataAccess();
         userService = new UserService(dao);
         gameService = new GameService(dao);
