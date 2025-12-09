@@ -47,7 +47,7 @@ public class ServiceTests {
 
         CreateGameRequest request = new CreateGameRequest("testgame");
         GameService service = new GameService(dao);
-        CreateGameResult result = service.createGame(token, request);
+        GameData result = service.createGame(token, request);
 
         assertTrue(result.gameID() > 0);  // Also fixed > 1 to > 0 (hashCode can be 1)
     }

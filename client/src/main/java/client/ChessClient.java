@@ -116,7 +116,8 @@ public class ChessClient {
             System.out.print("Game name: ");
             String gameName = scanner.nextLine().trim();
             GameData game = facade.createGame(currentAuth.authToken(), gameName);
-            System.out.println("Created game: " + game.gameName());
+
+            System.out.println("Created game: " + gameName);
         } catch (Exception e) {
             System.out.println("Could not create game.");
         }
