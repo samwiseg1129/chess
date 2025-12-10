@@ -57,11 +57,9 @@ public class ServerFacade {
         String json;
 
         if (color == null) {
-            // Observer
             var body = Map.of("gameID", gameId);
             json = gson.toJson(body);
         } else {
-            // Player
             var body = Map.of("gameID", gameId, "playerColor", color);
             json = gson.toJson(body);
         }
@@ -101,6 +99,4 @@ public class ServerFacade {
         ErrorResult handleError = gson.fromJson(response.body(), ErrorResult.class);
         throw (handleError);
     }
-
-
 }

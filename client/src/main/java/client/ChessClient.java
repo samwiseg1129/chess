@@ -17,7 +17,7 @@ public class ChessClient {
 
     private State state = State.PRELOGIN;
     private AuthData currentAuth;
-    private List<GameData> lastGames = new ArrayList<>();
+    private List<GameData> ListOfGames = new ArrayList<>();
 
     public ChessClient(ServerFacade facade) {
         this.facade = facade;
@@ -125,9 +125,9 @@ public class ChessClient {
 
     private void handleListGames() {
         try {
-            lastGames = facade.listGames(currentAuth.authToken());
-            for (int i = 0; i < lastGames.size(); i++) {
-                GameData g = lastGames.get(i);
+            ListOfGames = facade.listGames(currentAuth.authToken());
+            for (int i = 0; i < ListOfGames.size(); i++) {
+                GameData g = ListOfGames.get(i);
                 System.out.printf("%d) %s (white=%s, black=%s)%n",
                         i + 1, g.gameName(), g.whiteUsername(), g.blackUsername());
             }
@@ -137,18 +137,18 @@ public class ChessClient {
     }
 
     private void handlePlayGame() {
-        if (lastGames.isEmpty()) {
+        if (ListOfGames.isEmpty()) {
             System.out.println("No games loaded. Use 'list games' first.");
             return;
         }
         try {
             System.out.print("Enter game number: ");
             int index = Integer.parseInt(scanner.nextLine().trim()) - 1;
-            if (index < 0 || index >= lastGames.size()) {
+            if (index < 0 || index >= ListOfGames.size()) {
                 System.out.println("Invalid game number.");
                 return;
             }
-            GameData selected = lastGames.get(index);
+            GameData selected = ListOfGames.get(index);
 
             System.out.print("Color (white/black): ");
             String color = scanner.nextLine().trim().toLowerCase();
@@ -162,18 +162,18 @@ public class ChessClient {
     }
 
     private void handleObserveGame() {
-        if (lastGames.isEmpty()) {
+        if (ListOfGames.isEmpty()) {
             System.out.println("No games loaded. Use 'list games' first.");
             return;
         }
         try {
             System.out.print("Enter game number: ");
             int index = Integer.parseInt(scanner.nextLine().trim()) - 1;
-            if (index < 0 || index >= lastGames.size()) {
+            if (index < 0 || index >= ListOfGames.size()) {
                 System.out.println("Invalid game number.");
                 return;
             }
-            GameData selected = lastGames.get(index);
+            GameData selected = ListOfGames.get(index);
 
             GameData joined = facade.joinGame(currentAuth.authToken(), selected.gameID(), null);
             BoardMaker.drawInitialBoardForObserver();

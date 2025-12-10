@@ -7,12 +7,8 @@ import static ui.EscapeSequences.*;
 
 public class BoardMaker {
 
-    private static final int BOARD_SIZE_IN_SQUARES = 8;
-
-    // Visual width of each square (3 chars: symbol centered)
     private static final int SQUARE_WIDTH = 3;
 
-    // Unicode chess pieces: white = outline, black = solid
     private static final char WK = '\u2654';
     private static final char WQ = '\u2655';
     private static final char WR = '\u2656';
@@ -27,7 +23,6 @@ public class BoardMaker {
     private static final char BN = '\u265E';
     private static final char BP = '\u265F';
 
-    // -------- Public entry points --------
 
     public static void drawInitialBoardForColor(String color) {
         var out = new PrintStream(System.out, true, StandardCharsets.UTF_8);
@@ -48,7 +43,6 @@ public class BoardMaker {
         resetColors(out);
     }
 
-    // -------- Core drawing --------
 
     private static void drawInitialBoard(PrintStream out, boolean whitePerspective) {
         drawFileHeaders(out, whitePerspective);
@@ -71,11 +65,9 @@ public class BoardMaker {
     private static void drawRank(PrintStream out, int rank,
                                  int startFile, int endFile, int step) {
 
-        // Left rank label
         resetColors(out);
         out.printf("%d ", rank);
 
-        // Squares (one terminal row per rank)
         for (int file = startFile; file != endFile + step; file += step) {
             boolean dark = ((rank + file) % 2) == 0;
             char piece = initialPieceAt(rank, file);
@@ -87,10 +79,8 @@ public class BoardMaker {
             }
 
             if (piece == 0) {
-                // Empty square: full width of spaces, background provides color
                 out.print(" ".repeat(SQUARE_WIDTH));
             } else {
-                // Center the piece in the square
                 int leftPadding  = SQUARE_WIDTH / 2;
                 int rightPadding = SQUARE_WIDTH - leftPadding - 1;
 
@@ -100,14 +90,12 @@ public class BoardMaker {
             }
         }
 
-        // Right rank label
         resetColors(out);
         out.printf(" %d%n", rank);
     }
 
     private static void drawFileHeaders(PrintStream out, boolean whitePerspective) {
         resetColors(out);
-        // Three spaces: "<digit>" + space + one extra so letters align with centered pieces
         out.print("   ");
 
         if (whitePerspective) {
@@ -124,8 +112,6 @@ public class BoardMaker {
         out.println();
     }
 
-    // -------- Colors --------
-
     private static void setLightSquare(PrintStream out) {
         out.print(SET_BG_COLOR_WHITE);
         out.print(SET_TEXT_COLOR_BLACK); // all pieces rendered in black
@@ -141,10 +127,7 @@ public class BoardMaker {
         out.print(SET_TEXT_COLOR_WHITE);
     }
 
-    // -------- Initial piece placement --------
-
     private static char initialPieceAt(int rank, int file) {
-        // Black back rank
         if (rank == 8) {
             switch (file) {
                 case 1: case 8: return BR;
@@ -154,15 +137,12 @@ public class BoardMaker {
                 case 5: return BK;
             }
         }
-        // Black pawns
         if (rank == 7) {
             return BP;
         }
-        // White pawns
         if (rank == 2) {
             return WP;
         }
-        // White back rank
         if (rank == 1) {
             switch (file) {
                 case 1: case 8: return WR;

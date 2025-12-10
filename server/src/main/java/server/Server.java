@@ -131,7 +131,7 @@ public class Server {
             try {
                 String token = ctx.header("authorization");
                 var req = gson.fromJson(ctx.body(), JoinGameRequest.class);
-                if (ctx.body().length() == 4) {
+                if (ctx.body().length() == 1) {
                     gameService.joinObserver(token, req);
                 } else {
                     gameService.joinGame(token, req);
