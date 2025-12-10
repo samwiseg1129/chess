@@ -9,6 +9,7 @@ import dataaccess.MySqlDataAccess;
 import io.javalin.Javalin;
 import service.*;
 import service.requests.*;
+import server.websocket.WebSocketHandler;
 
 public class Server {
     private final Gson gson = new Gson();
@@ -58,6 +59,15 @@ public class Server {
         clearService = new ClearService(dao);
 
         javalin = Javalin.create(config -> config.staticFiles.add("web"));
+
+        WebSocketHandler wsHandler = new WebSocketHandler(dao);
+
+        javalin.ws("/ws", ws -> {
+            ws.onConnect(ctx -> wsHandler.onOpen(ctx));
+            ws.onClose(ctx -> wsHandler.onClose(ctx));
+            ws.onError(ctx -> wsHandler.onError(ctx));
+            ws.onMessage(ctx -> wsHandler.onMessage(ctx));
+        });
 
         // clear
         javalin.delete("/db", ctx -> {
