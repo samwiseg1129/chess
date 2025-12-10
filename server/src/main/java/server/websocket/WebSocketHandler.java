@@ -120,7 +120,7 @@ public class WebSocketHandler {
 
         ServerMessage moveNote = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
         moveNote.setMessage(auth.username() + " moved " + moveToString(move));
-        connectionManager.broadcastToGame(cmd.getGameID(), moveNote);
+        connectionManager.broadcastToGameExcept(cmd.getGameID(), ctx, moveNote); // CHANGED
     }
 
     private void handleLeave(WsContext ctx, UserGameCommand cmd) throws DataAccessException {
