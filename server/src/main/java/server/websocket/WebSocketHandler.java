@@ -91,6 +91,12 @@ public class WebSocketHandler {
         ChessGame game = gameData.game();
         ChessMove move = cmd.getMove();
 
+        // NEW: disallow moves after game is over
+        if (game.isGameOver()) { // or, if you don't have this, base it on your own flag
+            sendError(ctx, "Error: game is over");
+            return;
+        }
+
         ChessGame.TeamColor playerColor = determineColorForUser(gameData, auth.username());
         if (playerColor == null) {
             throw new DataAccessException("Error: observers cannot move");
@@ -120,8 +126,9 @@ public class WebSocketHandler {
 
         ServerMessage moveNote = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
         moveNote.setMessage(auth.username() + " moved " + moveToString(move));
-        connectionManager.broadcastToGameExcept(cmd.getGameID(), ctx, moveNote); // CHANGED
+        connectionManager.broadcastToGameExcept(cmd.getGameID(), ctx, moveNote);
     }
+
 
     private void handleLeave(WsContext ctx, UserGameCommand cmd) throws DataAccessException {
         AuthData auth = dataAccess.getAuth(cmd.getAuthToken());
@@ -167,6 +174,8 @@ public class WebSocketHandler {
             throw new DataAccessException("Error: observers cannot resign");
         }
 
+        game.setGameOver(true);
+
         GameData updated = new GameData(
                 gameData.gameID(),
                 gameData.whiteUsername(),
@@ -184,6 +193,7 @@ public class WebSocketHandler {
                 (winner == ChessGame.TeamColor.WHITE ? "White" : "Black") + " wins.");
         connectionManager.broadcastToGame(cmd.getGameID(), note);
     }
+
 
     private void sendError(WsContext ctx, String errorText) {
         ServerMessage error = new ServerMessage(ServerMessage.ServerMessageType.ERROR);
