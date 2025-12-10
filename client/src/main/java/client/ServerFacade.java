@@ -54,8 +54,18 @@ public class ServerFacade {
     }
 
     public GameData joinGame(String authToken, int gameId, String color) throws Exception {
-        var body = Map.of("gameID", gameId, "playerColor", color);
-        String json = gson.toJson(body);
+        String json;
+
+        if (color == null) {
+            // Observer: no playerColor field
+            var body = Map.of("gameID", gameId);
+            json = gson.toJson(body);
+        } else {
+            // Player: include playerColor
+            var body = Map.of("gameID", gameId, "playerColor", color);
+            json = gson.toJson(body);
+        }
+
         String response = handleResponse(sendRequest("PUT", "/game", authToken, json));
         return gson.fromJson(response, GameData.class);
     }
