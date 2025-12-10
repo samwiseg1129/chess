@@ -46,12 +46,7 @@ public class GameService {
         String username = auth.username();
         String color = req.playerColor();
 
-        if (color == null) {
-            // Observer: no seat needed, just ensure game exists and user is authorized
-            // No change to GameData required for public observers
-            return;
-        }
-
+        if (color == null) throw new DataAccessException("Error: bad request");
         if (color.equalsIgnoreCase("WHITE")) {
             if (game.whiteUsername() != null) throw new DataAccessException("Error: already taken");
             game = new GameData(game.gameID(), username, game.blackUsername(), game.gameName(), game.game());
@@ -63,6 +58,20 @@ public class GameService {
         }
 
         dao.updateGame(game);
+    }
+
+    public GameData joinObserver(String authToken, JoinGameRequest req) throws DataAccessException {
+        AuthData auth = dao.getAuth(authToken);
+        if (auth == null) {
+            throw new DataAccessException("Error unauthorized");
+        }
+
+        GameData game = dao.getGame(req.gameID());
+        if (game == null) {
+            throw new DataAccessException("Error bad request");
+        }
+
+        return game;
     }
 
 }

@@ -131,8 +131,13 @@ public class Server {
             try {
                 String token = ctx.header("authorization");
                 var req = gson.fromJson(ctx.body(), JoinGameRequest.class);
-                gameService.joinGame(token, req);
-                ctx.status(200).result("{}");
+                if (ctx.body().length() == 4) {
+                    gameService.joinObserver(token, req);
+                } else {
+                    gameService.joinGame(token, req);
+                }
+                var updated = dao.getGame(req.gameID());
+                ctx.status(200).json(gson.toJson(updated));
             } catch (DataAccessException e) {
                 setError(ctx, e);
             }
