@@ -8,6 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+import client.websocket.WebsocketCommunicator;
+import exception.ResponseException;
+import websocket.messages.ServerMessage;
+
 public class ChessClient {
 
     private enum State { PRELOGIN, POSTLOGIN }
