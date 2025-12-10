@@ -3,6 +3,10 @@ package ui;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
+import chess.ChessBoard;
+import chess.ChessPiece;
+import chess.ChessPosition;
+
 import static ui.EscapeSequences.*;
 
 public class BoardMaker {
@@ -15,7 +19,6 @@ public class BoardMaker {
     private static final char WB = '\u2657';
     private static final char WN = '\u2658';
     private static final char WP = '\u2659';
-
     private static final char BK = '\u265A';
     private static final char BQ = '\u265B';
     private static final char BR = '\u265C';
@@ -23,54 +26,65 @@ public class BoardMaker {
     private static final char BN = '\u265E';
     private static final char BP = '\u265F';
 
-
     public static void drawInitialBoardForColor(String color) {
         var out = new PrintStream(System.out, true, StandardCharsets.UTF_8);
         out.print(ERASE_SCREEN);
-
         boolean whitePerspective = !"black".equalsIgnoreCase(color);
         drawInitialBoard(out, whitePerspective);
-
         resetColors(out);
     }
 
     public static void drawInitialBoardForObserver() {
         var out = new PrintStream(System.out, true, StandardCharsets.UTF_8);
         out.print(ERASE_SCREEN);
-
         drawInitialBoard(out, true);
-
         resetColors(out);
     }
 
+    // NEW: draw an arbitrary board for gameplay
+    public static void drawBoard(ChessBoard board, String perspectiveColor) {
+        var out = new PrintStream(System.out, true, StandardCharsets.UTF_8);
+        out.print(ERASE_SCREEN);
+        boolean whitePerspective = (perspectiveColor == null) ||
+                !"BLACK".equalsIgnoreCase(perspectiveColor);
+        drawBoard(out, board, whitePerspective);
+        resetColors(out);
+    }
 
     private static void drawInitialBoard(PrintStream out, boolean whitePerspective) {
         drawFileHeaders(out, whitePerspective);
-        drawBoard(out, whitePerspective);
+        drawBoard(out, (ChessBoard) null, whitePerspective);
         drawFileHeaders(out, whitePerspective);
     }
 
-    private static void drawBoard(PrintStream out, boolean whitePerspective) {
+    // CHANGED: overload that can use either initial layout or a live ChessBoard
+    private static void drawBoard(PrintStream out, ChessBoard board, boolean whitePerspective) {
         if (whitePerspective) {
             for (int rank = 8; rank >= 1; rank--) {
-                drawRank(out, rank, 1, 8, +1);
+                drawRank(out, board, rank, 1, 8, +1);
             }
         } else {
             for (int rank = 1; rank <= 8; rank++) {
-                drawRank(out, rank, 8, 1, -1);
+                drawRank(out, board, rank, 8, 1, -1);
             }
         }
     }
 
-    private static void drawRank(PrintStream out, int rank,
-                                 int startFile, int endFile, int step) {
+    // Backward‑compatible wrapper used by initial‑board code
+    private static void drawBoard(PrintStream out, boolean whitePerspective) {
+        drawBoard(out, null, whitePerspective);
+    }
 
+    private static void drawRank(PrintStream out, ChessBoard board,
+                                 int rank, int startFile, int endFile, int step) {
         resetColors(out);
         out.printf("%d ", rank);
 
         for (int file = startFile; file != endFile + step; file += step) {
             boolean dark = ((rank + file) % 2) == 0;
-            char piece = initialPieceAt(rank, file);
+            char piece = (board == null)
+                    ? initialPieceAt(rank, file)
+                    : pieceAt(board, rank, file);
 
             if (dark) {
                 setDarkSquare(out);
@@ -81,11 +95,10 @@ public class BoardMaker {
             if (piece == 0) {
                 out.print(" ".repeat(SQUARE_WIDTH));
             } else {
-                int leftPadding  = SQUARE_WIDTH / 2;
+                int leftPadding = SQUARE_WIDTH / 2;
                 int rightPadding = SQUARE_WIDTH - leftPadding - 1;
-
                 out.print(" ".repeat(leftPadding));
-                out.print(piece);              // outline or solid, but always black
+                out.print(piece);
                 out.print(" ".repeat(rightPadding));
             }
         }
@@ -96,30 +109,33 @@ public class BoardMaker {
 
     private static void drawFileHeaders(PrintStream out, boolean whitePerspective) {
         resetColors(out);
-        out.print("   ");
-
+        // rank label + following space = 2 chars of left margin
+        out.print("  ");
         if (whitePerspective) {
             for (char file = 'a'; file <= 'h'; file++) {
-                out.print(file);
-                out.print(" ".repeat(SQUARE_WIDTH - 1));
+                out.print(" ");      // left pad inside square
+                out.print(file);     // letter centered
+                out.print(" ");      // right pad inside square
             }
         } else {
             for (char file = 'h'; file >= 'a'; file--) {
+                out.print(" ");
                 out.print(file);
-                out.print(" ".repeat(SQUARE_WIDTH - 1));
+                out.print(" ");
             }
         }
         out.println();
     }
 
+
     private static void setLightSquare(PrintStream out) {
         out.print(SET_BG_COLOR_WHITE);
-        out.print(SET_TEXT_COLOR_BLACK); // all pieces rendered in black
+        out.print(SET_TEXT_COLOR_BLACK);
     }
 
     private static void setDarkSquare(PrintStream out) {
         out.print(SET_BG_COLOR_BLUE);
-        out.print(SET_TEXT_COLOR_BLACK); // all pieces rendered in black
+        out.print(SET_TEXT_COLOR_BLACK);
     }
 
     private static void resetColors(PrintStream out) {
@@ -153,5 +169,35 @@ public class BoardMaker {
             }
         }
         return 0;
+    }
+
+    // NEW: get piece char from a live ChessBoard
+    private static char pieceAt(ChessBoard board, int rank, int file) {
+        if (board == null) {
+            return initialPieceAt(rank, file);
+        }
+        ChessPosition pos = new ChessPosition(rank, file);
+        ChessPiece piece = board.getPiece(pos);
+        if (piece == null) {
+            return 0;
+        }
+        return switch (piece.getTeamColor()) {
+            case WHITE -> switch (piece.getPieceType()) {
+                case KING -> WK;
+                case QUEEN -> WQ;
+                case ROOK -> WR;
+                case BISHOP -> WB;
+                case KNIGHT -> WN;
+                case PAWN -> WP;
+            };
+            case BLACK -> switch (piece.getPieceType()) {
+                case KING -> BK;
+                case QUEEN -> BQ;
+                case ROOK -> BR;
+                case BISHOP -> BB;
+                case KNIGHT -> BN;
+                case PAWN -> BP;
+            };
+        };
     }
 }
