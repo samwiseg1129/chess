@@ -153,7 +153,7 @@ public class ChessClient {
             System.out.print("Color (white/black): ");
             String color = scanner.nextLine().trim().toLowerCase();
 
-            GameData joined = facade.joinGame(currentAuth.authToken(), selected.gameID(), color);
+            facade.joinGame(currentAuth.authToken(), selected.gameID(), color);
             BoardMaker.drawInitialBoardForColor(color);
             System.out.println("Joined game " + (index + 1) + " as " + color + ".");
         } catch (Exception e) {
@@ -173,9 +173,9 @@ public class ChessClient {
                 System.out.println("Invalid game number.");
                 return;
             }
-            GameData selected = ListOfGames.get(index);
+//            GameData selected = ListOfGames.get(index);
 
-            GameData joined = facade.joinGame(currentAuth.authToken(), selected.gameID(), null);
+//            facade.joinGame(currentAuth.authToken(), selected.gameID(), null);
             BoardMaker.drawInitialBoardForObserver();
             System.out.println("Observing game " + (index + 1) + ".");
         } catch (Exception e) {
