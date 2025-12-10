@@ -57,11 +57,11 @@ public class ServerFacade {
         String json;
 
         if (color == null) {
-            // Observer: no playerColor field
+            // Observer
             var body = Map.of("gameID", gameId);
             json = gson.toJson(body);
         } else {
-            // Player: include playerColor
+            // Player
             var body = Map.of("gameID", gameId, "playerColor", color);
             json = gson.toJson(body);
         }
