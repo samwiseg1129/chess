@@ -7,7 +7,6 @@ import model.AuthData;
 import chess.ChessGame;
 import service.requests.CreateGameRequest;
 import service.requests.JoinGameRequest;
-import service.results.CreateGameResult;
 import service.results.GameListResult;
 
 import java.util.List;
@@ -27,13 +26,14 @@ public class GameService {
         return new GameListResult(games);
     }
 
-    public CreateGameResult createGame(String authToken, CreateGameRequest req) throws DataAccessException {
+    public GameData createGame(String authToken, CreateGameRequest req) throws DataAccessException {
         AuthData auth = dao.getAuth(authToken);
         if (auth == null) throw new DataAccessException("Error: unauthorized");
+
         int gameID = Math.abs(UUID.randomUUID().hashCode());
         GameData game = new GameData(gameID, null, null, req.gameName(), new ChessGame());
         dao.createGame(game);
-        return new CreateGameResult(gameID);
+        return game;
     }
 
     public void joinGame(String authToken, JoinGameRequest req) throws DataAccessException {
