@@ -1,19 +1,14 @@
 package client;
 
 import com.google.gson.Gson;
-import com.sun.net.httpserver.Request;
 import model.AuthData;
 import model.GameData;
 import model.GameList;
 
-import java.io.*;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
