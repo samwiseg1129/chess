@@ -26,12 +26,12 @@ public class WebSocketHandler {
 
     public void onOpen(WsContext ctx) {}
 
-    public void onMessage(WsMessageContext ctx) {   // CHANGED: WsMessageContext
-        String message = ctx.message();            // VALID in Javalin 6
+    public void onMessage(WsMessageContext ctx) {
+        String message = ctx.message();
 
         try {
             UserGameCommand command = gson.fromJson(message, UserGameCommand.class);
-            handleCommand(ctx, command);          // handleCommand can take WsContext
+            handleCommand(ctx, command);
         } catch (Exception ex) {
             sendError(ctx, "Error: invalid command: " + ex.getMessage());
         }
@@ -91,8 +91,7 @@ public class WebSocketHandler {
         ChessGame game = gameData.game();
         ChessMove move = cmd.getMove();
 
-        // NEW: disallow moves after game is over
-        if (game.isGameOver()) { // or, if you don't have this, base it on your own flag
+        if (game.isGameOver()) {
             sendError(ctx, "Error: game is over");
             return;
         }
@@ -169,6 +168,10 @@ public class WebSocketHandler {
         GameData gameData = dataAccess.getGame(cmd.getGameID());
         ChessGame game = gameData.game();
 
+        if (game.isGameOver()) {
+            sendError(ctx, "Error: game is over");
+            return;
+        }
         ChessGame.TeamColor resignColor = determineColorForUser(gameData, auth.username());
         if (resignColor == null) {
             throw new DataAccessException("Error: observers cannot resign");
@@ -194,7 +197,6 @@ public class WebSocketHandler {
         connectionManager.broadcastToGame(cmd.getGameID(), note);
     }
 
-
     private void sendError(WsContext ctx, String errorText) {
         ServerMessage error = new ServerMessage(ServerMessage.ServerMessageType.ERROR);
         error.setErrorMessage(errorText);
@@ -211,7 +213,7 @@ public class WebSocketHandler {
     private ChessGame.TeamColor determineColorForUser(GameData game, String username) {
         if (username.equals(game.whiteUsername())) return ChessGame.TeamColor.WHITE;
         if (username.equals(game.blackUsername())) return ChessGame.TeamColor.BLACK;
-        return null; // observer
+        return null;
     }
 
     private String moveToString(ChessMove move) {
