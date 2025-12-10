@@ -126,6 +126,49 @@ public class WebSocketHandler {
         ServerMessage moveNote = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
         moveNote.setMessage(auth.username() + " moved " + moveToString(move));
         connectionManager.broadcastToGameExcept(cmd.getGameID(), ctx, moveNote);
+
+        ChessGame.TeamColor opponentColor = (game.getTeamTurn() == ChessGame.TeamColor.WHITE)
+                ? ChessGame.TeamColor.BLACK : ChessGame.TeamColor.WHITE;
+
+        gameData = dataAccess.getGame(cmd.getGameID());
+        String opponentName = (opponentColor == ChessGame.TeamColor.WHITE)
+                ? gameData.whiteUsername() : gameData.blackUsername();
+
+        if (game.isInCheckmate(opponentColor)) {
+            game.setGameOver(true);
+            GameData finalGame = new GameData(
+                    gameData.gameID(),
+                    gameData.whiteUsername(),
+                    gameData.blackUsername(),
+                    gameData.gameName(),
+                    game
+            );
+            dataAccess.updateGame(finalGame);
+
+            ServerMessage checkmateMsg = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
+            checkmateMsg.setMessage(opponentName + " is in checkmate! Game over.");
+            connectionManager.broadcastToGame(cmd.getGameID(), checkmateMsg);
+
+        } else if (game.isInStalemate(opponentColor)) {
+            game.setGameOver(true);
+            GameData finalGame = new GameData(
+                    gameData.gameID(),
+                    gameData.whiteUsername(),
+                    gameData.blackUsername(),
+                    gameData.gameName(),
+                    game
+            );
+            dataAccess.updateGame(finalGame);
+
+            ServerMessage stalemateMsg = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
+            stalemateMsg.setMessage("Stalemate! The game is a draw.");
+            connectionManager.broadcastToGame(cmd.getGameID(), stalemateMsg);
+
+        } else if (game.isInCheck(opponentColor)) {
+            ServerMessage checkMsg = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
+            checkMsg.setMessage(opponentName + " is in check!");
+            connectionManager.broadcastToGame(cmd.getGameID(), checkMsg);
+        }
     }
 
 
