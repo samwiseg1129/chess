@@ -2,6 +2,7 @@ package ui;
 
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 
 import chess.ChessBoard;
 import chess.ChessPiece;
@@ -41,7 +42,7 @@ public class BoardMaker {
         resetColors(out);
     }
 
-    // NEW: draw an arbitrary board for gameplay
+    // Draw arbitrary board (no highlights)
     public static void drawBoard(ChessBoard board, String perspectiveColor) {
         var out = new PrintStream(System.out, true, StandardCharsets.UTF_8);
         out.print(ERASE_SCREEN);
@@ -51,32 +52,56 @@ public class BoardMaker {
         resetColors(out);
     }
 
-    private static void drawInitialBoard(PrintStream out, boolean whitePerspective) {
-        drawFileHeaders(out, whitePerspective);
-        drawBoard(out, (ChessBoard) null, whitePerspective);
-        drawFileHeaders(out, whitePerspective);
+    // Draw arbitrary board with highlighted squares
+    public static void drawBoard(ChessBoard board, String perspectiveColor,
+                                 Set<ChessPosition> highlights) {
+        var out = new PrintStream(System.out, true, StandardCharsets.UTF_8);
+        out.print(ERASE_SCREEN);
+        boolean whitePerspective = (perspectiveColor == null) ||
+                !"BLACK".equalsIgnoreCase(perspectiveColor);
+        drawBoard(out, board, whitePerspective, highlights);
+        resetColors(out);
     }
 
-    // CHANGED: overload that can use either initial layout or a live ChessBoard
+    private static void drawInitialBoard(PrintStream out, boolean whitePerspective) {
+        // Use generic path with no highlights, null board means initial layout
+        drawBoard(out, (ChessBoard) null, whitePerspective, null);
+    }
+
+    // Wrapper: existing calls use this (no highlights)
     private static void drawBoard(PrintStream out, ChessBoard board, boolean whitePerspective) {
+        drawBoard(out, board, whitePerspective, null);
+    }
+
+    // Core drawBoard with optional highlights; always prints headers top/bottom
+    private static void drawBoard(PrintStream out, ChessBoard board,
+                                  boolean whitePerspective,
+                                  Set<ChessPosition> highlights) {
+
+        // top file letters
+        drawFileHeaders(out, whitePerspective);
+
         if (whitePerspective) {
             for (int rank = 8; rank >= 1; rank--) {
-                drawRank(out, board, rank, 1, 8, +1);
+                drawRank(out, board, rank, 1, 8, +1, highlights);
             }
         } else {
             for (int rank = 1; rank <= 8; rank++) {
-                drawRank(out, board, rank, 8, 1, -1);
+                drawRank(out, board, rank, 8, 1, -1, highlights);
             }
         }
+
+        // bottom file letters
+        drawFileHeaders(out, whitePerspective);
     }
 
-    // Backward‑compatible wrapper used by initial‑board code
     private static void drawBoard(PrintStream out, boolean whitePerspective) {
         drawBoard(out, null, whitePerspective);
     }
 
     private static void drawRank(PrintStream out, ChessBoard board,
-                                 int rank, int startFile, int endFile, int step) {
+                                 int rank, int startFile, int endFile, int step,
+                                 Set<ChessPosition> highlights) {
         resetColors(out);
         out.printf("%d ", rank);
 
@@ -86,7 +111,16 @@ public class BoardMaker {
                     ? initialPieceAt(rank, file)
                     : pieceAt(board, rank, file);
 
-            if (dark) {
+            boolean isHighlighted = false;
+            if (highlights != null && board != null) {
+                ChessPosition pos = new ChessPosition(rank, file);
+                isHighlighted = highlights.contains(pos);
+            }
+
+            if (isHighlighted) {
+                out.print(SET_BG_COLOR_GREEN);
+                out.print(SET_TEXT_COLOR_BLACK);
+            } else if (dark) {
                 setDarkSquare(out);
             } else {
                 setLightSquare(out);
@@ -109,13 +143,13 @@ public class BoardMaker {
 
     private static void drawFileHeaders(PrintStream out, boolean whitePerspective) {
         resetColors(out);
-        // rank label + following space = 2 chars of left margin
+        // rank label + space on ranks = 2 chars, so match that here
         out.print("  ");
         if (whitePerspective) {
             for (char file = 'a'; file <= 'h'; file++) {
-                out.print(" ");      // left pad inside square
-                out.print(file);     // letter centered
-                out.print(" ");      // right pad inside square
+                out.print(" ");
+                out.print(file);
+                out.print(" ");
             }
         } else {
             for (char file = 'h'; file >= 'a'; file--) {
@@ -126,7 +160,6 @@ public class BoardMaker {
         }
         out.println();
     }
-
 
     private static void setLightSquare(PrintStream out) {
         out.print(SET_BG_COLOR_WHITE);
@@ -171,7 +204,6 @@ public class BoardMaker {
         return 0;
     }
 
-    // NEW: get piece char from a live ChessBoard
     private static char pieceAt(ChessBoard board, int rank, int file) {
         if (board == null) {
             return initialPieceAt(rank, file);

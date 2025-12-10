@@ -1,18 +1,20 @@
 package client;
 
 import client.websocket.NotificationHandler;
+import client.websocket.WebsocketCommunicator;
+
 import model.AuthData;
 import model.GameData;
+
 import ui.BoardMaker;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
-import client.websocket.WebsocketCommunicator;
 import exception.ResponseException;
-import websocket.messages.ServerMessage;
 
+import websocket.messages.ServerMessage;
 import chess.ChessMove;
 import chess.ChessPosition;
 
@@ -22,12 +24,15 @@ public class ChessClient {
 
     private final ServerFacade facade;
     private final Scanner scanner = new Scanner(System.in);
+
     private State state = State.PRELOGIN;
     private AuthData currentAuth;
     private List<GameData> ListOfGames = new ArrayList<>();
 
     private WebsocketCommunicator ws;
+
     private GameData currentGame;
+    // Stored as "WHITE" or "BLACK" (uppercase) or null for observers
     private String currentColor;
     private boolean inGame = false;
 
@@ -145,37 +150,40 @@ public class ChessClient {
         }
     }
 
+    /**
+     * Create the WebsocketCommunicator once and wire NotificationHandler
+     * so server messages trigger board updates and notifications.
+     */
     private void ensureWebsocket() throws ResponseException {
-        if (ws == null) {
-            client.websocket.NotificationHandler handler = serverMessage -> {
-                switch (serverMessage.getServerMessageType()) {
-                    case LOAD_GAME -> {
-                        var game = serverMessage.getGame();
-                        if (game == null) {
-                            System.out.println("LOAD_GAME with no game.");
-                            return;
-                        }
+        if (ws != null) {
+            return;
+        }
 
-                        String perspective = getCurrentColor();
-                        if (perspective == null) {
-                            BoardMaker.drawBoard(game.getBoard(), "WHITE");
-                        } else {
-                            BoardMaker.drawBoard(game.getBoard(), perspective);
-                        }
+        NotificationHandler handler = serverMessage -> {
+            switch (serverMessage.getServerMessageType()) {
+                case LOAD_GAME -> {
+                    var game = serverMessage.getGame();
+                    if (game == null) {
+                        System.out.println("LOAD_GAME with no game.");
+                        return;
                     }
 
-                    case NOTIFICATION -> System.out.println(serverMessage.getMessage());
-
-                    case ERROR -> System.out.println("Server error: " + serverMessage.getMessage());
-
-                    default -> System.out.println("Unknown server message: " + serverMessage.getServerMessageType());
+                    String perspective = getCurrentColor();
+                    if (perspective == null) {
+                        // Observers default to white perspective
+                        BoardMaker.drawBoard(game.getBoard(), "WHITE");
+                    } else {
+                        BoardMaker.drawBoard(game.getBoard(), perspective);
+                    }
                 }
-            };
+                case NOTIFICATION -> System.out.println(serverMessage.getMessage());
+                case ERROR -> System.out.println("Server error: " + serverMessage.getMessage());
+                default -> System.out.println("Unknown server message: " + serverMessage.getServerMessageType());
+            }
+        };
 
-            ws = new WebsocketCommunicator(facade.getBaseUrl(), handler);
-        }
+        ws = new WebsocketCommunicator(facade.getBaseUrl(), handler);
     }
-
 
     public String getCurrentColor() {
         return currentColor;
@@ -214,7 +222,6 @@ public class ChessClient {
 
             BoardMaker.drawInitialBoardForColor(color);
             System.out.println("Joined game " + (index + 1) + " as " + color + ".");
-
             gameLoop();
         } catch (ResponseException e) {
             System.out.println("Websocket error: " + e.getMessage());
@@ -236,10 +243,10 @@ public class ChessClient {
                 System.out.println("Invalid game number.");
                 return;
             }
-            GameData selected = ListOfGames.get(index);
 
+            GameData selected = ListOfGames.get(index);
             currentGame = selected;
-            currentColor = null;
+            currentColor = null; // observer
             inGame = true;
 
             ensureWebsocket();
@@ -247,7 +254,6 @@ public class ChessClient {
 
             BoardMaker.drawInitialBoardForObserver();
             System.out.println("Observing game " + (index + 1) + ".");
-
             gameLoop();
         } catch (ResponseException e) {
             System.out.println("Websocket error: " + e.getMessage());
@@ -257,12 +263,14 @@ public class ChessClient {
     }
 
     private void gameLoop() {
-        System.out.println("Entering game. Commands: move, leave, resign, help.");
+        System.out.println("Entering game. Commands: move, redraw, highlight, leave, resign, help.");
         while (inGame) {
             System.out.print("[GAME] Enter command: ");
             String cmd = scanner.nextLine().trim().toLowerCase();
             switch (cmd) {
                 case "move" -> handleMove();
+                case "redraw" -> handleRedraw();
+                case "highlight" -> handleLegalMoves();
                 case "leave" -> handleLeave();
                 case "resign" -> handleResign();
                 case "help" -> printGameHelp();
@@ -272,7 +280,7 @@ public class ChessClient {
     }
 
     private void printGameHelp() {
-        System.out.println("Game commands: move, leave, resign, help.");
+        System.out.println("Game commands: move, redraw, highlight, leave, resign, help.");
         System.out.println("Move format: fromRow fromCol toRow toCol (e.g., e2 e4).");
     }
 
@@ -281,6 +289,7 @@ public class ChessClient {
             System.out.println("Not in a game.");
             return;
         }
+
         try {
             System.out.print("Enter move (e.g. e2 e4): ");
             String[] parts = scanner.nextLine().trim().split("\\s+");
@@ -305,7 +314,6 @@ public class ChessClient {
 
     private ChessPosition parseLetters(String sq) {
         if (sq == null || sq.length() != 2) return null;
-
         char fileChar = Character.toLowerCase(sq.charAt(0));
         char rankChar = sq.charAt(1);
 
@@ -317,13 +325,12 @@ public class ChessClient {
         return new ChessPosition(rank, file);
     }
 
-
-
     private void handleLeave() {
         if (currentGame == null) {
             System.out.println("Not in a game.");
             return;
         }
+
         try {
             ws.leave(currentAuth.authToken(), currentGame.gameID());
             inGame = false;
@@ -340,6 +347,7 @@ public class ChessClient {
             System.out.println("Not in a game.");
             return;
         }
+
         try {
             ws.resign(currentAuth.authToken(), currentGame.gameID());
             inGame = false;
@@ -350,4 +358,61 @@ public class ChessClient {
             System.out.println("Could not resign: " + e.getMessage());
         }
     }
+    private void handleRedraw() {
+        if (currentGame == null) {
+            System.out.println("Not in a game.");
+            return;
+        }
+        var game = currentGame.game();
+        if (game == null) {
+            System.out.println("No game state to draw.");
+            return;
+        }
+        String perspective = getCurrentColor();
+        if (perspective == null) {
+            BoardMaker.drawBoard(game.getBoard(), "WHITE");
+        } else {
+            BoardMaker.drawBoard(game.getBoard(), perspective);
+        }
+    }
+
+    private void handleLegalMoves() {
+        if (currentGame == null) {
+            System.out.println("Not in a game.");
+            return;
+        }
+        var game = currentGame.game();
+        if (game == null) {
+            System.out.println("No game state loaded yet.");
+            return;
+        }
+
+        System.out.print("Square to inspect (e.g. e2): ");
+        String sqStr = scanner.nextLine().trim();
+        ChessPosition from = parseLetters(sqStr);
+        if (from == null) {
+            System.out.println("Invalid square. Use a–h and 1–8.");
+            return;
+        }
+
+        var piece = game.getBoard().getPiece(from);
+        if (piece == null) {
+            System.out.println("No piece on that square.");
+            return;
+        }
+
+        java.util.Set<ChessPosition> targets = new java.util.HashSet<>();
+        for (var move : game.validMoves(from)) {  // per spec
+            targets.add(move.getEndPosition());
+        }
+
+        String perspective = getCurrentColor();
+        if (perspective == null) {
+            BoardMaker.drawBoard(game.getBoard(), "WHITE", targets);
+        } else {
+            BoardMaker.drawBoard(game.getBoard(), perspective, targets);
+        }
+    }
+
+
 }
