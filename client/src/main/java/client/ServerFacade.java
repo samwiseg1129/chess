@@ -99,4 +99,8 @@ public class ServerFacade {
         ErrorResult handleError = gson.fromJson(response.body(), ErrorResult.class);
         throw (handleError);
     }
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
 }

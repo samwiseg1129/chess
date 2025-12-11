@@ -4,12 +4,11 @@ import chess.ChessGame;
 import com.google.gson.Gson;
 import websocket.messages.ServerMessage;
 import io.javalin.websocket.WsContext;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-
 public class ConnectionManager {
-
     private static class ClientConnection {
         final String authToken;
         final WsContext ctx;
@@ -31,17 +30,17 @@ public class ConnectionManager {
 
     public void add(int gameId, String authToken, WsContext ctx, ChessGame.TeamColor color) {
         games.computeIfAbsent(gameId, id -> new ConcurrentHashMap<>())
-                .put(key(ctx), new ClientConnection(authToken, ctx, color)); // CHANGED
+                .put(key(ctx), new ClientConnection(authToken, ctx, color));
     }
 
     public void remove(WsContext ctx) {
-        String k = key(ctx); // CHANGED
+        String k = key(ctx);
         games.values().forEach(map -> map.remove(k));
         games.entrySet().removeIf(e -> e.getValue().isEmpty());
     }
 
     public void remove(int gameId, WsContext ctx) {
-        String k = key(ctx); // CHANGED
+        String k = key(ctx);
         var gameMap = games.get(gameId);
         if (gameMap != null) {
             gameMap.remove(k);
@@ -52,13 +51,22 @@ public class ConnectionManager {
     }
 
     public void broadcastToGame(int gameId, ServerMessage message) {
+        System.out.println("=== BROADCASTING to game " + gameId);
         var gameMap = games.get(gameId);
-        if (gameMap == null) return;
-
-        String json = gson.toJson(message);
-        for (var entry : gameMap.values()) {
-            send(entry.ctx, json);
+        if (gameMap == null) {
+            System.err.println("ERROR: No connections found for game " + gameId);
+            return;
         }
+
+        System.out.println("=== Found " + gameMap.size() + " connections for game " + gameId);
+        String json = gson.toJson(message);
+
+        for (var entry : gameMap.values()) {
+            System.out.println("=== Sending to connection...");
+            send(entry.ctx, json);
+            System.out.println("=== Sent message: " + message.getServerMessageType());
+        }
+        System.out.println("=== BROADCAST complete");
     }
 
     public void sendToColor(int gameId, ChessGame.TeamColor color, ServerMessage message) {
@@ -75,8 +83,16 @@ public class ConnectionManager {
 
     private void send(WsContext ctx, String json) {
         try {
-            ctx.send(json);
-        } catch (Exception ignored) {
+            // Check if session is still open before sending
+            if (ctx.session.isOpen()) {
+                ctx.send(json);
+            } else {
+                System.err.println("ERROR: Session is closed, cannot send message");
+                remove(ctx);
+            }
+        } catch (Exception e) {
+            System.err.println("ERROR sending message: " + e.getMessage());
+            e.printStackTrace();
             try {
                 ctx.session.close();
             } catch (Exception ignored2) {
@@ -84,12 +100,14 @@ public class ConnectionManager {
             remove(ctx);
         }
     }
+
     public void broadcastToGameExcept(int gameId, WsContext except, ServerMessage message) {
         var gameMap = games.get(gameId);
         if (gameMap == null) return;
 
         String json = gson.toJson(message);
         String exceptKey = key(except);
+
         for (var entry : gameMap.entrySet()) {
             if (!entry.getKey().equals(exceptKey)) {
                 send(entry.getValue().ctx, json);

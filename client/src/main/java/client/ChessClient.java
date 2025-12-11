@@ -195,21 +195,24 @@ public class ChessClient {
                 }
 
                 case NOTIFICATION -> {
+                    // Print every notification the server sends
                     String msg = serverMessage.getMessage();
                     System.out.println(msg);
 
-                    // NEW: Check for game-ending notifications
+                    // Mark game over for resign/checkmate/stalemate notifications
                     String lowerMsg = msg.toLowerCase();
-                    if (lowerMsg.contains("resigned") ||
-                            lowerMsg.contains("checkmate") ||
-                            lowerMsg.contains("stalemate")) {
+                    if (lowerMsg.contains("resigned")
+                            || lowerMsg.contains("checkmate")
+                            || lowerMsg.contains("stalemate")) {
                         gameOver = true;
                         System.out.println("Game is over. No more moves can be made.");
                     }
                 }
+
                 case ERROR -> {
                     System.out.println("Server error: " + serverMessage.getMessage());
                 }
+
                 default -> {
                     System.out.println("Unknown server message: " + serverMessage.getServerMessageType());
                 }
@@ -218,6 +221,7 @@ public class ChessClient {
 
         ws = new WebsocketCommunicator(facade.getBaseUrl(), handler);
     }
+
 
     public String getCurrentColor() {
         return currentColor;

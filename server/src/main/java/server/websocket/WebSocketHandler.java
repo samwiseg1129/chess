@@ -86,59 +86,74 @@ public class WebSocketHandler {
     private void handleConnect(WsContext ctx, UserGameCommand cmd) throws DataAccessException {
         AuthData auth = dataAccess.getAuth(cmd.getAuthToken());
         GameData gameData = dataAccess.getGame(cmd.getGameID());
-        System.out.println("=== CONNECT: user=" + auth.username()
-                + " gameId=" + cmd.getGameID()
-                + " teamTurn=" + gameData.game().getTeamTurn());
-
         ChessGame.TeamColor color = determineColorForUser(gameData, auth.username());
+
         connectionManager.add(cmd.getGameID(), cmd.getAuthToken(), ctx, color);
 
+        // 1) Send LOAD_GAME to the joining client
         ServerMessage load = new ServerMessage(ServerMessage.ServerMessageType.LOAD_GAME);
         load.setGame(gameData.game());
         sendToContext(ctx, load);
 
-        ServerMessage note = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
+        // 2) Personalized join message for the joining client
+        ServerMessage selfNote = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
         if (color == ChessGame.TeamColor.WHITE || color == ChessGame.TeamColor.BLACK) {
-            note.setMessage(auth.username() + " joined as " + color.name().toLowerCase());
+            selfNote.setMessage(auth.username() + " joined game #" + cmd.getGameID()
+                    + " as " + color.name().toLowerCase());
         } else {
-            note.setMessage(auth.username() + " joined as an observer");
+            selfNote.setMessage(auth.username() + " joined game #" + cmd.getGameID()
+                    + " as an observer");
         }
-        connectionManager.broadcastToGameExcept(cmd.getGameID(), ctx, note);
+        sendToContext(ctx, selfNote);
+
+        // 3) Notification for everyone else in the game
+        ServerMessage othersNote = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
+        if (color == ChessGame.TeamColor.WHITE || color == ChessGame.TeamColor.BLACK) {
+            othersNote.setMessage(auth.username() + " joined as " + color.name().toLowerCase());
+        } else {
+            othersNote.setMessage(auth.username() + " joined as an observer");
+        }
+        connectionManager.broadcastToGameExcept(cmd.getGameID(), ctx, othersNote);
     }
+
 
     private void handleMakeMove(WsContext ctx, UserGameCommand cmd) throws DataAccessException {
         System.out.println("=== HANDLING MAKE_MOVE for gameID: " + cmd.getGameID());
 
+        // Get auth and game
         AuthData auth = dataAccess.getAuth(cmd.getAuthToken());
         System.out.println("=== Auth retrieved: " + auth.username());
 
         GameData gameData = dataAccess.getGame(cmd.getGameID());
-        ChessGame game = gameData.game();
         System.out.println("=== Game retrieved: " + gameData.gameName());
+
+        ChessGame game = gameData.game();
         System.out.println("=== Team turn at start of handleMakeMove: " + game.getTeamTurn());
 
         ChessMove move = cmd.getMove();
         System.out.println("=== Move to process: " + moveToString(move));
 
+        // Already over?
         if (game.isGameOver()) {
-            System.out.println("=== Game is already over; rejecting move.");
             sendError(ctx, "Error: game is over");
             return;
         }
 
+        // Ensure this user is a player, not an observer
         ChessGame.TeamColor playerColor = determineColorForUser(gameData, auth.username());
         System.out.println("=== Player color: " + playerColor);
-
         if (playerColor == null) {
             throw new DataAccessException("Error: observers cannot move");
         }
 
+        // Turn check
         if (game.getTeamTurn() != playerColor) {
             System.out.println("=== Not player's turn. teamTurn=" + game.getTeamTurn()
                     + " playerColor=" + playerColor);
             throw new DataAccessException("Error: not your turn");
         }
 
+        // Try to apply the move in the ChessGame rules engine
         try {
             game.makeMove(move);
             System.out.println("=== Move applied. New teamTurn: " + game.getTeamTurn());
@@ -147,6 +162,7 @@ public class WebSocketHandler {
             throw new DataAccessException("Error: illegal move", e);
         }
 
+        // Persist updated game
         GameData updated = new GameData(
                 gameData.gameID(),
                 gameData.whiteUsername(),
@@ -157,22 +173,25 @@ public class WebSocketHandler {
         System.out.println("=== Updating game in DataAccess with teamTurn=" + game.getTeamTurn());
         dataAccess.updateGame(updated);
 
+        // 1) Send LOAD_GAME with new board to everyone in the game
         ServerMessage load = new ServerMessage(ServerMessage.ServerMessageType.LOAD_GAME);
         load.setGame(game);
         connectionManager.broadcastToGame(cmd.getGameID(), load);
 
+        // 2) Send NOTIFICATION about the move to everyone except the mover
         ServerMessage moveNote = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
         moveNote.setMessage(auth.username() + " moved " + moveToString(move));
         connectionManager.broadcastToGameExcept(cmd.getGameID(), ctx, moveNote);
 
+        // 3) Check for check, checkmate, or stalemate on the opponent
         ChessGame.TeamColor opponentColor =
                 (game.getTeamTurn() == ChessGame.TeamColor.WHITE)
                         ? ChessGame.TeamColor.BLACK
                         : ChessGame.TeamColor.WHITE;
-
         System.out.println("=== After move, teamTurn=" + game.getTeamTurn()
                 + " opponentColor=" + opponentColor);
 
+        // Reload from DB to get fresh usernames
         gameData = dataAccess.getGame(cmd.getGameID());
         System.out.println("=== Reloaded game from DataAccess. teamTurn="
                 + gameData.game().getTeamTurn());
@@ -180,6 +199,12 @@ public class WebSocketHandler {
         String opponentName = (opponentColor == ChessGame.TeamColor.WHITE)
                 ? gameData.whiteUsername()
                 : gameData.blackUsername();
+
+        System.out.println("=== After move, teamTurn=" + game.getTeamTurn()
+                + " opponentColor=" + opponentColor);
+        System.out.println("=== isInCheck(opponentColor)=" + game.isInCheck(opponentColor));
+        System.out.println("=== isInCheckmate(opponentColor)=" + game.isInCheckmate(opponentColor));
+        System.out.println("=== isInStalemate(opponentColor)=" + game.isInStalemate(opponentColor));
 
         if (game.isInCheckmate(opponentColor)) {
             System.out.println("=== Checkmate detected for " + opponentColor);
@@ -192,9 +217,11 @@ public class WebSocketHandler {
                     game
             );
             dataAccess.updateGame(finalGame);
+
             ServerMessage checkmateMsg = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
             checkmateMsg.setMessage(opponentName + " is in checkmate! Game over.");
             connectionManager.broadcastToGame(cmd.getGameID(), checkmateMsg);
+
         } else if (game.isInStalemate(opponentColor)) {
             System.out.println("=== Stalemate detected for " + opponentColor);
             game.setGameOver(true);
@@ -206,9 +233,11 @@ public class WebSocketHandler {
                     game
             );
             dataAccess.updateGame(finalGame);
+
             ServerMessage stalemateMsg = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
             stalemateMsg.setMessage("Stalemate! The game is a draw.");
             connectionManager.broadcastToGame(cmd.getGameID(), stalemateMsg);
+
         } else if (game.isInCheck(opponentColor)) {
             System.out.println("=== Check detected for " + opponentColor);
             ServerMessage checkMsg = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
@@ -216,6 +245,7 @@ public class WebSocketHandler {
             connectionManager.broadcastToGame(cmd.getGameID(), checkMsg);
         }
     }
+
 
     private void handleLeave(WsContext ctx, UserGameCommand cmd) throws DataAccessException {
         AuthData auth = dataAccess.getAuth(cmd.getAuthToken());
