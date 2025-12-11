@@ -95,26 +95,16 @@ public class WebSocketHandler {
         load.setGame(gameData.game());
         sendToContext(ctx, load);
 
-        // 2) Personalized join message for the joining client
-        ServerMessage selfNote = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
+        // 2) Notification for everyone else in the game (NOT to the joining client)
+        ServerMessage note = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
         if (color == ChessGame.TeamColor.WHITE || color == ChessGame.TeamColor.BLACK) {
-            selfNote.setMessage(auth.username() + " joined game #" + cmd.getGameID()
-                    + " as " + color.name().toLowerCase());
+            note.setMessage(auth.username() + " joined as " + color.name().toLowerCase());
         } else {
-            selfNote.setMessage(auth.username() + " joined game #" + cmd.getGameID()
-                    + " as an observer");
+            note.setMessage(auth.username() + " joined as an observer");
         }
-        sendToContext(ctx, selfNote);
-
-        // 3) Notification for everyone else in the game
-        ServerMessage othersNote = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
-        if (color == ChessGame.TeamColor.WHITE || color == ChessGame.TeamColor.BLACK) {
-            othersNote.setMessage(auth.username() + " joined as " + color.name().toLowerCase());
-        } else {
-            othersNote.setMessage(auth.username() + " joined as an observer");
-        }
-        connectionManager.broadcastToGameExcept(cmd.getGameID(), ctx, othersNote);
+        connectionManager.broadcastToGameExcept(cmd.getGameID(), ctx, note);
     }
+
 
 
     private void handleMakeMove(WsContext ctx, UserGameCommand cmd) throws DataAccessException {
