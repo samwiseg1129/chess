@@ -26,10 +26,15 @@ public class WebsocketCommunicator extends Endpoint {
             WebSocketContainer container = ContainerProvider.getWebSocketContainer();
             this.session = container.connectToServer(this, socketURI);
 
-            this.session.addMessageHandler((MessageHandler.Whole<String>) message -> {
-                ServerMessage serverMessage = gson.fromJson(message, ServerMessage.class);
-                notificationHandler.notify(serverMessage);
+
+            this.session.addMessageHandler(new MessageHandler.Whole<String>() {
+                @Override
+                public void onMessage(String message) {
+                    ServerMessage serverMessage = gson.fromJson(message, ServerMessage.class);
+                    notificationHandler.notify(serverMessage);
+                }
             });
+
         } catch (DeploymentException | IOException | URISyntaxException ex) {
             throw new ResponseException(ResponseException.Code.SERVER_ERROR, ex.getMessage());
         }

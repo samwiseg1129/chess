@@ -63,11 +63,30 @@ public class Server {
         WebSocketHandler wsHandler = new WebSocketHandler(dao);
 
         javalin.ws("/ws", ws -> {
-            ws.onConnect(ctx -> wsHandler.onOpen(ctx));
-            ws.onClose(ctx -> wsHandler.onClose(ctx));
-            ws.onError(ctx -> wsHandler.onError(ctx));
-            ws.onMessage(ctx -> wsHandler.onMessage(ctx));
+            ws.onConnect(ctx -> {
+                // Keep connection alive for 30 minutes
+                ctx.session.setIdleTimeout(java.time.Duration.ofMinutes(30));
+                System.out.println("=== WebSocket CONNECTED: " + ctx.session.getRemoteAddress());
+                wsHandler.onOpen(ctx);
+            });
+
+            ws.onClose(ctx -> {
+                System.out.println("=== WebSocket CLOSED: " + ctx.session.getRemoteAddress());
+                wsHandler.onClose(ctx);
+            });
+
+            ws.onError(ctx -> {
+                System.err.println("=== WebSocket ERROR occurred for session: " + ctx.session.getRemoteAddress());
+                wsHandler.onError(ctx);
+            });
+
+            ws.onMessage(ctx -> {
+                System.out.println("=== WebSocket MESSAGE received: " + ctx.message());
+                wsHandler.onMessage(ctx);
+            });
         });
+
+
 
         // clear
         javalin.delete("/db", ctx -> {

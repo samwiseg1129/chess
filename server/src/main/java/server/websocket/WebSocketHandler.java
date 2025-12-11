@@ -6,7 +6,6 @@ import com.google.gson.Gson;
 import dataaccess.DataAccess;
 import dataaccess.DataAccessException;
 import io.javalin.websocket.WsContext;
-
 import io.javalin.websocket.WsMessageContext;
 import model.AuthData;
 import model.GameData;
@@ -18,36 +17,53 @@ public class WebSocketHandler {
     private static final Gson gson = new Gson();
 
     private final DataAccess dataAccess;
+
     private final ConnectionManager connectionManager = new ConnectionManager();
 
     public WebSocketHandler(DataAccess dataAccess) {
         this.dataAccess = dataAccess;
     }
 
-    public void onOpen(WsContext ctx) {}
+    public void onOpen(WsContext ctx) {
+        System.out.println("=== WebSocket OPEN: " + ctx.session.getRemoteAddress());
+    }
 
     public void onMessage(WsMessageContext ctx) {
         String message = ctx.message();
-
+        System.out.println("=== WebSocket MESSAGE received: " + message);
         try {
             UserGameCommand command = gson.fromJson(message, UserGameCommand.class);
             handleCommand(ctx, command);
         } catch (Exception ex) {
+            System.err.println("=== Exception parsing command: " + ex.getMessage());
+            ex.printStackTrace();
             sendError(ctx, "Error: invalid command: " + ex.getMessage());
         }
     }
 
     public void onClose(WsContext ctx) {
+        System.out.println("=== WebSocket CLOSED: " + ctx.session.getRemoteAddress());
         connectionManager.remove(ctx);
     }
 
     public void onError(WsContext ctx) {
-        sendError(ctx, "Error: websocket failure");
-        connectionManager.remove(ctx);
+        System.err.println("=== WebSocket onError for session: " + ctx.session);
+        try {
+            if (ctx.session.isOpen()) {
+                sendError(ctx, "Error: websocket failure");
+            } else {
+                System.err.println("Session already closed; not sending error.");
+            }
+        } catch (Exception e) {
+            System.err.println("Error while handling onError: " + e.getMessage());
+        } finally {
+            connectionManager.remove(ctx);
+        }
     }
 
     private void handleCommand(WsContext ctx, UserGameCommand command) {
         try {
+            System.out.println("=== Handling command: " + command.getCommandType());
             switch (command.getCommandType()) {
                 case CONNECT -> handleConnect(ctx, command);
                 case MAKE_MOVE -> handleMakeMove(ctx, command);
@@ -55,9 +71,14 @@ public class WebSocketHandler {
                 case RESIGN -> handleResign(ctx, command);
                 default -> sendError(ctx, "Error: unknown command");
             }
+            System.out.println("=== Command completed: " + command.getCommandType());
         } catch (DataAccessException ex) {
+            System.err.println("=== DataAccessException in handleCommand: " + ex.getMessage());
+            ex.printStackTrace();
             sendError(ctx, ex.getMessage());
         } catch (Exception ex) {
+            System.err.println("=== Exception in handleCommand: " + ex.getMessage());
+            ex.printStackTrace();
             sendError(ctx, "Error: " + ex.getMessage());
         }
     }
@@ -65,8 +86,11 @@ public class WebSocketHandler {
     private void handleConnect(WsContext ctx, UserGameCommand cmd) throws DataAccessException {
         AuthData auth = dataAccess.getAuth(cmd.getAuthToken());
         GameData gameData = dataAccess.getGame(cmd.getGameID());
-        ChessGame.TeamColor color = determineColorForUser(gameData, auth.username());
+        System.out.println("=== CONNECT: user=" + auth.username()
+                + " gameId=" + cmd.getGameID()
+                + " teamTurn=" + gameData.game().getTeamTurn());
 
+        ChessGame.TeamColor color = determineColorForUser(gameData, auth.username());
         connectionManager.add(cmd.getGameID(), cmd.getAuthToken(), ctx, color);
 
         ServerMessage load = new ServerMessage(ServerMessage.ServerMessageType.LOAD_GAME);
@@ -79,34 +103,47 @@ public class WebSocketHandler {
         } else {
             note.setMessage(auth.username() + " joined as an observer");
         }
-
         connectionManager.broadcastToGameExcept(cmd.getGameID(), ctx, note);
     }
 
-
-
     private void handleMakeMove(WsContext ctx, UserGameCommand cmd) throws DataAccessException {
+        System.out.println("=== HANDLING MAKE_MOVE for gameID: " + cmd.getGameID());
+
         AuthData auth = dataAccess.getAuth(cmd.getAuthToken());
+        System.out.println("=== Auth retrieved: " + auth.username());
+
         GameData gameData = dataAccess.getGame(cmd.getGameID());
         ChessGame game = gameData.game();
+        System.out.println("=== Game retrieved: " + gameData.gameName());
+        System.out.println("=== Team turn at start of handleMakeMove: " + game.getTeamTurn());
+
         ChessMove move = cmd.getMove();
+        System.out.println("=== Move to process: " + moveToString(move));
 
         if (game.isGameOver()) {
+            System.out.println("=== Game is already over; rejecting move.");
             sendError(ctx, "Error: game is over");
             return;
         }
 
         ChessGame.TeamColor playerColor = determineColorForUser(gameData, auth.username());
+        System.out.println("=== Player color: " + playerColor);
+
         if (playerColor == null) {
             throw new DataAccessException("Error: observers cannot move");
         }
+
         if (game.getTeamTurn() != playerColor) {
+            System.out.println("=== Not player's turn. teamTurn=" + game.getTeamTurn()
+                    + " playerColor=" + playerColor);
             throw new DataAccessException("Error: not your turn");
         }
 
         try {
             game.makeMove(move);
+            System.out.println("=== Move applied. New teamTurn: " + game.getTeamTurn());
         } catch (chess.InvalidMoveException e) {
+            System.err.println("=== InvalidMoveException: " + e.getMessage());
             throw new DataAccessException("Error: illegal move", e);
         }
 
@@ -117,6 +154,7 @@ public class WebSocketHandler {
                 gameData.gameName(),
                 game
         );
+        System.out.println("=== Updating game in DataAccess with teamTurn=" + game.getTeamTurn());
         dataAccess.updateGame(updated);
 
         ServerMessage load = new ServerMessage(ServerMessage.ServerMessageType.LOAD_GAME);
@@ -127,14 +165,24 @@ public class WebSocketHandler {
         moveNote.setMessage(auth.username() + " moved " + moveToString(move));
         connectionManager.broadcastToGameExcept(cmd.getGameID(), ctx, moveNote);
 
-        ChessGame.TeamColor opponentColor = (game.getTeamTurn() == ChessGame.TeamColor.WHITE)
-                ? ChessGame.TeamColor.BLACK : ChessGame.TeamColor.WHITE;
+        ChessGame.TeamColor opponentColor =
+                (game.getTeamTurn() == ChessGame.TeamColor.WHITE)
+                        ? ChessGame.TeamColor.BLACK
+                        : ChessGame.TeamColor.WHITE;
+
+        System.out.println("=== After move, teamTurn=" + game.getTeamTurn()
+                + " opponentColor=" + opponentColor);
 
         gameData = dataAccess.getGame(cmd.getGameID());
+        System.out.println("=== Reloaded game from DataAccess. teamTurn="
+                + gameData.game().getTeamTurn());
+
         String opponentName = (opponentColor == ChessGame.TeamColor.WHITE)
-                ? gameData.whiteUsername() : gameData.blackUsername();
+                ? gameData.whiteUsername()
+                : gameData.blackUsername();
 
         if (game.isInCheckmate(opponentColor)) {
+            System.out.println("=== Checkmate detected for " + opponentColor);
             game.setGameOver(true);
             GameData finalGame = new GameData(
                     gameData.gameID(),
@@ -144,12 +192,11 @@ public class WebSocketHandler {
                     game
             );
             dataAccess.updateGame(finalGame);
-
             ServerMessage checkmateMsg = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
             checkmateMsg.setMessage(opponentName + " is in checkmate! Game over.");
             connectionManager.broadcastToGame(cmd.getGameID(), checkmateMsg);
-
         } else if (game.isInStalemate(opponentColor)) {
+            System.out.println("=== Stalemate detected for " + opponentColor);
             game.setGameOver(true);
             GameData finalGame = new GameData(
                     gameData.gameID(),
@@ -159,23 +206,24 @@ public class WebSocketHandler {
                     game
             );
             dataAccess.updateGame(finalGame);
-
             ServerMessage stalemateMsg = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
             stalemateMsg.setMessage("Stalemate! The game is a draw.");
             connectionManager.broadcastToGame(cmd.getGameID(), stalemateMsg);
-
         } else if (game.isInCheck(opponentColor)) {
+            System.out.println("=== Check detected for " + opponentColor);
             ServerMessage checkMsg = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
             checkMsg.setMessage(opponentName + " is in check!");
             connectionManager.broadcastToGame(cmd.getGameID(), checkMsg);
         }
     }
 
-
     private void handleLeave(WsContext ctx, UserGameCommand cmd) throws DataAccessException {
         AuthData auth = dataAccess.getAuth(cmd.getAuthToken());
         GameData gameData = dataAccess.getGame(cmd.getGameID());
         ChessGame.TeamColor color = determineColorForUser(gameData, auth.username());
+        System.out.println("=== LEAVE: user=" + auth.username()
+                + " color=" + color
+                + " gameId=" + cmd.getGameID());
 
         GameData updated = gameData;
         if (color == ChessGame.TeamColor.WHITE) {
@@ -195,7 +243,9 @@ public class WebSocketHandler {
                     gameData.game()
             );
         }
+
         if (updated != gameData) {
+            System.out.println("=== Updating game on LEAVE");
             dataAccess.updateGame(updated);
         }
 
@@ -210,18 +260,21 @@ public class WebSocketHandler {
         AuthData auth = dataAccess.getAuth(cmd.getAuthToken());
         GameData gameData = dataAccess.getGame(cmd.getGameID());
         ChessGame game = gameData.game();
+        System.out.println("=== RESIGN: user=" + auth.username()
+                + " gameId=" + cmd.getGameID()
+                + " teamTurn=" + game.getTeamTurn());
 
         if (game.isGameOver()) {
             sendError(ctx, "Error: game is over");
             return;
         }
+
         ChessGame.TeamColor resignColor = determineColorForUser(gameData, auth.username());
         if (resignColor == null) {
             throw new DataAccessException("Error: observers cannot resign");
         }
 
         game.setGameOver(true);
-
         GameData updated = new GameData(
                 gameData.gameID(),
                 gameData.whiteUsername(),
@@ -232,15 +285,18 @@ public class WebSocketHandler {
         dataAccess.updateGame(updated);
 
         ChessGame.TeamColor winner =
-                (resignColor == ChessGame.TeamColor.WHITE) ? ChessGame.TeamColor.BLACK : ChessGame.TeamColor.WHITE;
+                (resignColor == ChessGame.TeamColor.WHITE)
+                        ? ChessGame.TeamColor.BLACK
+                        : ChessGame.TeamColor.WHITE;
 
         ServerMessage note = new ServerMessage(ServerMessage.ServerMessageType.NOTIFICATION);
-        note.setMessage(auth.username() + " resigned. " +
-                (winner == ChessGame.TeamColor.WHITE ? "White" : "Black") + " wins.");
+        note.setMessage(auth.username() + " resigned. "
+                + (winner == ChessGame.TeamColor.WHITE ? "White" : "Black") + " wins.");
         connectionManager.broadcastToGame(cmd.getGameID(), note);
     }
 
     private void sendError(WsContext ctx, String errorText) {
+        System.err.println("=== SENDING ERROR: " + errorText);
         ServerMessage error = new ServerMessage(ServerMessage.ServerMessageType.ERROR);
         error.setErrorMessage(errorText);
         sendToContext(ctx, error);
@@ -248,8 +304,12 @@ public class WebSocketHandler {
 
     private void sendToContext(WsContext ctx, ServerMessage msg) {
         try {
-            ctx.send(gson.toJson(msg));
-        } catch (Exception ignored) {
+            String json = gson.toJson(msg);
+            ctx.send(json);
+            System.out.println("=== Sent message: " + msg.getServerMessageType());
+        } catch (Exception e) {
+            System.err.println("=== ERROR sending message: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
